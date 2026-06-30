@@ -1,0 +1,58 @@
+# =============================================================================
+#  docker-compose para levantar el proyecto completo:
+#    - db  : base de datos PostgreSQL
+#    - api : backend Spring Boot (se conecta a db)
+#
+#  Uso típico:
+#    docker compose up -d db      # sólo la base de datos (desarrollo local)
+#    docker compose up --build    # base de datos + API
+#
+#  Las credenciales y secretos se leen del archivo .env (ver .env.example).
+# =============================================================================
+
+services:
+  # ---------------------------- Base de datos ----------------------------
+  db:
+    image: postgres:17-alpine
+    container_name: todo_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-todo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-todo}
+      POSTGRES_DB: ${POSTGRES_DB:-todo_db}
+    ports:
+      # host:contenedor. Exponemos 5433 en el host para no chocar con un
+      # PostgreSQL local que ya use el 5432.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # La API espera a que este healthcheck pase (depends_on: service_healthy).
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-todo} -d $${POSTGRES_DB:-todo_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ------------------------------- Backend -------------------------------
+  api:
+    build: ./backend
+    container_name: todo_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Dentro de la red de compose, la BD es accesible por el nombre 'db'
+      # en su puerto interno 5432.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-todo_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-todo}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-todo}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-dev-secret-key-change-me-please-32bytes-minimum}
+      APP_JWT_EXPIRATION_MS: ${APP_JWT_EXPIRATION_MS:-86400000}
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
+    driver: local

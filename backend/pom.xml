@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      ============================================================================
+       Proyecto padre: hereda la gestión de versiones de todas las dependencias
+       de Spring Boot. Así no tenemos que indicar la versión en cada <dependency>.
+      ============================================================================
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.16</version>
+        <relativePath/> <!-- se descarga del repositorio, no es un módulo local -->
+    </parent>
+
+    <!-- Coordenadas (identificador único) de NUESTRO artefacto -->
+    <groupId>com.example</groupId>
+    <artifactId>todo-api</artifactId>
+    <version>1.0.0</version>
+    <name>todo-api</name>
+    <description>API REST de gestión de tareas (To-Do) con autenticación JWT</description>
+
+    <properties>
+        <!-- Java 21 (LTS). Spring Boot 3.x exige Java 17 como mínimo. -->
+        <java.version>21</java.version>
+        <!-- Versión de la librería JJWT para crear/validar tokens JWT -->
+        <jjwt.version>0.12.7</jjwt.version>
+        <!-- Versión de springdoc para generar la documentación Swagger UI -->
+        <springdoc.version>2.8.17</springdoc.version>
+    </properties>
+
+    <dependencies>
+        <!-- ===================== Núcleo web (REST) ===================== -->
+        <!-- Spring MVC + servidor Tomcat embebido + Jackson (JSON) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- ===================== Seguridad ===================== -->
+        <!-- Spring Security: filtros, autenticación, BCrypt, etc. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- ===================== Persistencia (JPA) ===================== -->
+        <!-- Spring Data JPA + Hibernate como implementación de JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- ===================== Validación ===================== -->
+        <!-- Bean Validation (@Valid, @NotNull, @Size...) con Hibernate Validator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- ===================== Base de datos ===================== -->
+        <!-- Driver JDBC de PostgreSQL (sólo en ejecución, no al compilar) -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ===================== Migraciones de BD (Flyway) ===================== -->
+        <!-- Motor de migraciones: ejecuta los scripts SQL versionados al arrancar -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <!-- Soporte específico de Flyway 10+ para PostgreSQL -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- ===================== JWT (JSON Web Tokens) ===================== -->
+        <!-- API pública -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <!-- Implementación (en ejecución) -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Serialización JSON de los claims con Jackson (en ejecución) -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ===================== Documentación API (Swagger UI) ===================== -->
+        <!-- Genera /swagger-ui.html y /v3/api-docs automáticamente -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <!-- ===================== Dependencias de TEST ===================== -->
+        <!-- JUnit 5 + Mockito + AssertJ + Spring Test (sólo en pruebas) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Utilidades para probar Spring Security (usuarios simulados, etc.) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Base de datos en memoria H2: permite levantar el contexto en los
+             tests de integración sin necesitar un PostgreSQL real. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Empaqueta la app como un JAR ejecutable autocontenido -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

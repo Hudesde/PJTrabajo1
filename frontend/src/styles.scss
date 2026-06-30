@@ -1,0 +1,143 @@
+/* ============================================================================
+   Estilos GLOBALES de la aplicación.
+
+   1. Tema de Angular Material 3 (M3) generado desde la paleta institucional
+      (vino #9D2449 + dorado #B38E5D), con tipografía Montserrat.
+   2. Variables de marca, escala de espaciado y utilidades reutilizables.
+   3. Configuración de iconos (Material Symbols Outlined).
+
+   Inspiración visual: lenguaje institucional (Gobierno de Oaxaca):
+   limpio, sobrio, mucho espacio en blanco, sin degradados ni sombras fuertes.
+   ============================================================================ */
+
+@use '@angular/material' as mat;
+@use './theme/m3-theme' as theme;
+
+/* Estilos base de Material (se incluye una sola vez). */
+@include mat.core();
+
+/* Aplica el tema (colores) y la jerarquía tipográfica a toda la app. */
+html {
+  @include mat.all-component-themes(theme.$light-theme);
+  @include mat.typography-hierarchy(theme.$light-theme);
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------------------------
+   Variables de marca (para los elementos propios, no-Material)
+   --------------------------------------------------------------------------- */
+:root {
+  /* Paleta institucional */
+  --brand-primary: #9d2449;     /* vino / guinda */
+  --brand-primary-dark: #7a1c39;
+  --brand-secondary: #b38e5d;   /* dorado */
+
+  /* Estados */
+  --c-success: #59b038;
+  --c-info: #0098d4;
+  --c-warning: #f6c54a;
+  --c-error: #d32f2f;
+
+  /* Neutros (apoyo) */
+  --c-surface: #ffffff;
+  --c-bg: #f8f8f8;
+  --c-bg-alt: #ececec;
+  --c-text: #222222;
+  --c-text-muted: #555555;
+  --c-border: #ececec;
+
+  /* Escala de espaciado (4-8-12-16-24-32-40-48-64) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* Radios y sombra (sombras suaves, nunca fuertes) */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-soft: 0 1px 2px rgba(34, 34, 34, 0.04), 0 2px 8px rgba(34, 34, 34, 0.06);
+}
+
+/* ---------------------------------------------------------------------------
+   Reset / base
+   --------------------------------------------------------------------------- */
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
+  line-height: 1.6;            /* altura de línea amplia */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------------------------------------------------------------------
+   Iconos: Material Symbols Outlined (cargados en index.html)
+   --------------------------------------------------------------------------- */
+.material-symbols-outlined,
+mat-icon.mat-icon {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ---------------------------------------------------------------------------
+   Accesibilidad: foco visible y consistente (navegación por teclado)
+   --------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Utilidades reutilizables
+   --------------------------------------------------------------------------- */
+
+/* Skeleton de carga (placeholder animado, animación discreta). */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--c-bg-alt);
+  border-radius: var(--radius-sm);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  animation: skeleton-shimmer 1.4s infinite;
+}
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* Texto secundario / atenuado */
+.text-muted { color: var(--c-text-muted); }
+
+/* Snackbars por tipo (usa MatSnackBar con panelClass) */
+.snack-success { --mdc-snackbar-container-color: var(--c-success); }
+.snack-error   { --mdc-snackbar-container-color: var(--c-error); }
+.snack-info    { --mdc-snackbar-container-color: var(--c-info); }
+
+/* Respeta usuarios que prefieren menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}

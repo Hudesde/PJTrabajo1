@@ -1,0 +1,71 @@
+<h2 mat-dialog-title>
+  {{ isEdit ? 'Editar tarea' : 'Nueva tarea' }}
+</h2>
+
+<form [formGroup]="form" (ngSubmit)="save()">
+  <mat-dialog-content>
+
+    @if (errorMessage()) {
+      <div class="form-error" role="alert">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span>{{ errorMessage() }}</span>
+      </div>
+    }
+
+    <!-- Título -->
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Título</mat-label>
+      <input matInput formControlName="title" maxlength="150"
+             placeholder="Ej. Preparar informe mensual" />
+      <mat-icon matSuffix aria-hidden="true">title</mat-icon>
+      @if (form.controls.title.hasError('required')) {
+        <mat-error>El título es obligatorio.</mat-error>
+      }
+      @if (form.controls.title.hasError('maxlength')) {
+        <mat-error>Máximo 150 caracteres.</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Descripción -->
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Descripción</mat-label>
+      <textarea matInput formControlName="description" rows="3"
+                placeholder="Detalles de la tarea (opcional)"></textarea>
+    </mat-form-field>
+
+    <div class="row">
+      <!-- Estado -->
+      <mat-form-field appearance="outline" class="half">
+        <mat-label>Estado</mat-label>
+        <mat-select formControlName="status">
+          @for (opt of statusOptions; track opt.value) {
+            <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Fecha límite -->
+      <mat-form-field appearance="outline" class="half">
+        <mat-label>Fecha límite</mat-label>
+        <input matInput [matDatepicker]="picker" formControlName="dueDate" />
+        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-datepicker #picker></mat-datepicker>
+      </mat-form-field>
+    </div>
+
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close [disabled]="saving()">
+      Cancelar
+    </button>
+    <button mat-flat-button color="primary" type="submit" [disabled]="saving()">
+      @if (saving()) {
+        <mat-progress-spinner diameter="18" mode="indeterminate" />
+      } @else {
+        <mat-icon>{{ isEdit ? 'save' : 'add' }}</mat-icon>
+      }
+      <span>{{ saving() ? 'Guardando…' : (isEdit ? 'Guardar cambios' : 'Crear tarea') }}</span>
+    </button>
+  </mat-dialog-actions>
+</form>

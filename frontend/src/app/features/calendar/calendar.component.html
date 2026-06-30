@@ -1,0 +1,114 @@
+<div class="cal">
+
+  <mat-progress-bar *ngIf="loading()" mode="indeterminate" aria-label="Cargando"></mat-progress-bar>
+
+  <header class="cal__head">
+    <div>
+      <h1 class="cal__title">Calendario de tareas</h1>
+      <p class="cal__sub text-muted">
+        En escritorio verás un calendario mensual, y en móvil se mantiene un listado simple.
+      </p>
+    </div>
+  </header>
+
+  <mat-card *ngIf="loading()" appearance="outlined" class="cal__card">
+    <div class="skeleton skel-calendar"></div>
+    <div class="skeleton skel-calendar"></div>
+    <div class="skeleton skel-calendar"></div>
+  </mat-card>
+
+  <mat-card *ngIf="!loading() && errorMessage()" appearance="outlined" class="state-card">
+    <mat-icon class="state-icon--error">error_outline</mat-icon>
+    <p class="text-muted">{{ errorMessage() }}</p>
+    <button mat-stroked-button color="primary" (click)="load()">
+      <mat-icon>refresh</mat-icon>
+      Reintentar
+    </button>
+  </mat-card>
+
+  <mat-card *ngIf="!loading() && !errorMessage() && !hasPendingTasks()" appearance="outlined" class="cal__card">
+    <app-empty-state
+      title="No hay tareas por realizar"
+      message="Crea tareas nuevas o marca algunas como pendientes para verlas aquí."
+      icon="event_available">
+    </app-empty-state>
+  </mat-card>
+
+  <mat-card *ngIf="!loading() && !errorMessage() && hasPendingTasks()" appearance="outlined" class="cal__card">
+    <div class="cal__summary">
+      <div class="stat-card">
+        <span class="stat-card__label">Tareas por realizar</span>
+        <strong class="stat-card__value">{{ pendingCount() }}</strong>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card__label">Vencidas</span>
+        <strong class="stat-card__value">{{ overdueCount() }}</strong>
+      </div>
+    </div>
+
+    <div class="desktop-calendar" *ngIf="calendarWeeks().length">
+      <div class="calendar-header">
+        <div class="calendar-weekdays">
+          <span *ngFor="let day of weekDays">{{ day }}</span>
+        </div>
+      </div>
+
+      <div class="calendar-week" *ngFor="let week of calendarWeeks(); trackBy: trackByWeek">
+        <div class="calendar-week__label">{{ week.weekLabel }}</div>
+        <div class="calendar-week__frame">
+          <div class="calendar-week__days">
+            <div *ngFor="let day of week.days" class="calendar-cell" [class.other-month]="!day.isCurrentMonth" [class.today]="day.isToday">
+              <span class="calendar-cell__number">{{ day.display }}</span>
+            </div>
+          </div>
+          <div class="calendar-week__bars" [style.height.px]="week.rowCount * 52 + 16">
+            <div *ngFor="let segment of week.segments; trackBy: trackBySegment"
+                 class="calendar-bar"
+                 [class.overdue]="segment.isOverdue"
+                 [style.left.%]="segment.leftPct"
+                 [style.width.%]="segment.widthPct"
+                 [style.top.px]="segment.row * 52">
+              <span class="calendar-bar__title">{{ segment.title }}</span>
+              <span class="calendar-bar__label">{{ segment.label }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-list">
+      <ng-container *ngFor="let group of taskGroups(); trackBy: trackByGroup">
+        <section class="task-group">
+          <div class="task-group__header">
+            <div>
+              <h2 class="task-group__title">{{ group.label }}</h2>
+              <p class="task-group__meta">{{ group.tasks.length }} tarea{{ group.tasks.length === 1 ? '' : 's' }}</p>
+            </div>
+          </div>
+
+          <article *ngFor="let task of group.tasks; trackBy: trackByTask" class="task-card" [class.overdue]="isOverdue(task)">
+            <div class="task-card__top">
+              <div>
+                <h3 class="task-title">{{ task.title }}</h3>
+                <p *ngIf="task.description" class="task-description">{{ task.description }}</p>
+              </div>
+              <div class="task-card__meta">
+                <span class="badge status-{{ task.status.toLowerCase() }}">
+                  {{ statusLabel(task.status) }}
+                </span>
+                <span class="task-date">
+                  <ng-container *ngIf="task.dueDate; else noDue">
+                    Límite {{ formatDueDate(task.dueDate) }}
+                  </ng-container>
+                  <ng-template #noDue>
+                    Sin fecha límite
+                  </ng-template>
+                </span>
+              </div>
+            </div>
+          </article>
+        </section>
+      </ng-container>
+    </div>
+  </mat-card>
+</div>

@@ -1,0 +1,57 @@
+## ============================================================================
+##  Configuración principal de la aplicación.
+##
+##  Todos los valores sensibles o que cambian entre entornos se leen de
+##  variables de entorno con la sintaxis ${VARIABLE:valor_por_defecto}.
+##  Los valores por defecto sirven para desarrollo local; en producción se
+##  sobreescriben con variables de entorno (ver docker-compose.yml / .env).
+## ============================================================================
+
+spring:
+  application:
+    name: todo-api
+
+  ## ---------- Conexión a la base de datos PostgreSQL ----------
+  ## Por defecto apunta a localhost:5433 (puerto que expone docker-compose).
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/todo_db}
+    username: ${SPRING_DATASOURCE_USERNAME:todo}
+    password: ${SPRING_DATASOURCE_PASSWORD:todo}
+
+  ## ---------- JPA / Hibernate ----------
+  jpa:
+    hibernate:
+      ## 'validate': Hibernate NO crea ni modifica tablas; sólo comprueba que
+      ## las entidades coinciden con el esquema que crea Flyway. Si alguna vez
+      ## diera un error de validación, puede cambiarse temporalmente a 'none'.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        ## Muestra el SQL en consola (útil al desarrollar; desactivar en prod).
+        format_sql: true
+    show-sql: false
+
+  ## ---------- Flyway (migraciones de base de datos) ----------
+  ## Ejecuta automáticamente los scripts de src/main/resources/db/migration
+  ## al arrancar, creando el esquema de forma versionada y reproducible.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+## ---------- Servidor web ----------
+server:
+  port: ${SERVER_PORT:8080}
+
+## ---------- Parámetros propios de la aplicación (JWT) ----------
+app:
+  jwt:
+    ## Clave secreta para firmar los tokens. DEBE tener al menos 32 caracteres.
+    ## En producción, usar SIEMPRE una variable de entorno con un valor robusto.
+    secret: ${APP_JWT_SECRET:dev-secret-key-change-me-please-32bytes-minimum}
+    ## Tiempo de vida del token en milisegundos (86400000 ms = 24 horas).
+    expiration-ms: ${APP_JWT_EXPIRATION_MS:86400000}
+
+## ---------- Documentación Swagger ----------
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

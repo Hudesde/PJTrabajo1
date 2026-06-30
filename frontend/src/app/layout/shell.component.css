@@ -1,0 +1,130 @@
+:host { display: block; }
+
+/* ===================== Fondo difuminado (laterales) ===================== */
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: url('/assets/illustrations/site-background.png') center / cover no-repeat;
+  /* Difuminado discreto; el escalado evita bordes claros por el blur. */
+  filter: blur(16px) saturate(1.05);
+  transform: scale(1.1);
+}
+/* Velo para mantener legibilidad y un look sobrio (sin saturar). */
+.bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(248, 248, 248, 0.45);
+}
+
+/* ===================== Escenario centrado (opaco) ===================== */
+.stage.mat-sidenav-container {
+  position: relative;
+  z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--c-bg);
+  box-shadow: 0 0 48px rgba(0, 0, 0, 0.14);
+}
+.content-area.mat-sidenav-content {
+  background: transparent;
+}
+
+/* ===================== Marca (icono en círculo magenta) ===================== */
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: #fff;
+  flex-shrink: 0;
+}
+.brand-mark mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+/* ===================== Header estático ===================== */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--c-surface);
+  color: var(--c-text);
+  border-bottom: 1px solid var(--c-border);
+  padding: 0 12px;
+}
+.header__title {
+  font-size: 18px;
+  font-weight: 700;
+}
+.spacer { flex: 1 1 auto; }
+
+.user-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.user-name {
+  font-weight: 600;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===================== Menú lateral ===================== */
+.drawer {
+  width: 264px;
+  border-right: 1px solid var(--c-border);
+}
+.drawer__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px;
+}
+.drawer__title {
+  font-weight: 700;
+  font-size: 16px;
+}
+/* Opción activa del menú: tinte vino + texto de marca. */
+.active-link {
+  background: rgba(157, 36, 73, 0.10);
+}
+.active-link mat-icon,
+.active-link [matListItemTitle] {
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
+.subnav-list {
+  margin: 0;
+  padding: 0 0 0 16px;
+}
+.subnav-item {
+  padding-left: 40px;
+  font-size: 0.95rem;
+}
+.subnav-item mat-icon {
+  font-size: 18px;
+}
+
+/* ===================== Página ===================== */
+.page {
+  min-height: calc(100vh - 64px);
+}
+
+/* En pantallas anchas el fondo lateral luce; en estrechas el escenario ocupa todo. */
+@media (max-width: 1280px) {
+  .stage.mat-sidenav-container { box-shadow: none; }
+}

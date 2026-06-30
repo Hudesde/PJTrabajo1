@@ -1,0 +1,263 @@
+<!--
+  DASHBOARD (estilo SaaS):
+    · Toolbar superior con menú de usuario.
+    · Bienvenida + botón "Nueva tarea".
+    · Tarjetas de resumen (contadores por estado).
+    · Tarjeta con buscador + filtro + tabla (MatTable, paginación, orden, chips).
+    · Estados: carga (progress bar + skeleton), error, vacío y sin resultados.
+-->
+<div class="dash">
+
+  <!-- Barra de progreso de carga -->
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Cargando" />
+  }
+
+  <main class="content">
+
+    <!-- ===================== Bienvenida ===================== -->
+    <header class="welcome">
+      <div>
+        <h1 class="welcome__title">Hola, {{ username() }}</h1>
+        <p class="welcome__sub text-muted">Este es el resumen de tus tareas.</p>
+      </div>
+      <button mat-flat-button color="primary" class="new-btn" (click)="openCreate()">
+        <mat-icon>add</mat-icon>
+        Nueva tarea
+      </button>
+    </header>
+
+    <!-- ===================== Tarjetas de resumen ===================== -->
+    <section class="summary" aria-label="Resumen de tareas">
+      <mat-card class="stat" appearance="outlined">
+        <span class="stat__icon stat__icon--total"><mat-icon>list_alt</mat-icon></span>
+        <div>
+          <div class="stat__value">{{ total() }}</div>
+          <div class="stat__label text-muted">Total</div>
+        </div>
+      </mat-card>
+
+      <mat-card class="stat" appearance="outlined">
+        <span class="stat__icon stat__icon--pend"><mat-icon>schedule</mat-icon></span>
+        <div>
+          <div class="stat__value">{{ countPendiente() }}</div>
+          <div class="stat__label text-muted">Pendientes</div>
+        </div>
+      </mat-card>
+
+      <mat-card class="stat" appearance="outlined">
+        <span class="stat__icon stat__icon--prog"><mat-icon>autorenew</mat-icon></span>
+        <div>
+          <div class="stat__value">{{ countEnProgreso() }}</div>
+          <div class="stat__label text-muted">En progreso</div>
+        </div>
+      </mat-card>
+
+      <mat-card class="stat" appearance="outlined">
+        <span class="stat__icon stat__icon--done"><mat-icon>check_circle</mat-icon></span>
+        <div>
+          <div class="stat__value">{{ countCompletada() }}</div>
+          <div class="stat__label text-muted">Completadas</div>
+        </div>
+      </mat-card>
+    </section>
+
+    <!-- ===================== Contenido principal ===================== -->
+    @if (loading()) {
+      <!-- Skeleton de carga -->
+      <mat-card class="table-card" appearance="outlined">
+        @for (i of [0, 1, 2, 3, 4]; track i) {
+          <div class="skel-row">
+            <div class="skeleton skel-line skel-line--lg"></div>
+            <div class="skeleton skel-chip"></div>
+            <div class="skeleton skel-line skel-line--sm"></div>
+          </div>
+        }
+      </mat-card>
+    } @else if (errorMessage()) {
+      <!-- Estado de error -->
+      <mat-card class="state-card" appearance="outlined">
+        <mat-icon class="state-icon state-icon--error">error_outline</mat-icon>
+        <p class="state-text">{{ errorMessage() }}</p>
+        <button mat-stroked-button color="primary" (click)="loadTasks()">
+          <mat-icon>refresh</mat-icon>
+          Reintentar
+        </button>
+      </mat-card>
+    } @else if (total() === 0) {
+      <!-- Estado vacío (sin tareas) -->
+      <mat-card class="table-card" appearance="outlined">
+        <app-empty-state
+          title="Aún no tienes tareas"
+          message="Crea tu primera tarea para empezar a organizar tu trabajo."
+          actionLabel="Crear primera tarea"
+          actionIcon="add"
+          (action)="openCreate()" />
+      </mat-card>
+    } @else {
+      <!-- Tarjeta con filtros + tabla -->
+      <mat-card class="table-card" appearance="outlined">
+
+        <!-- Filtros -->
+        <div class="filters">
+          <mat-form-field appearance="outline" class="filters__search" subscriptSizing="dynamic">
+            <mat-label>Buscar</mat-label>
+            <mat-icon matPrefix aria-hidden="true">search</mat-icon>
+            <input matInput [formControl]="search"
+                   placeholder="Buscar por título o descripción" />
+            @if (search.value) {
+              <button matSuffix mat-icon-button aria-label="Limpiar búsqueda"
+                      (click)="search.setValue('')">
+                <mat-icon>close</mat-icon>
+              </button>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="filters__status" subscriptSizing="dynamic">
+            <mat-label>Estado</mat-label>
+            <mat-select [formControl]="statusFilter">
+              <mat-option [value]="null">Todas</mat-option>
+              @for (opt of statusOptions; track opt.value) {
+                <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <mat-divider></mat-divider>
+
+        @if (resultCount() === 0) {
+          <!-- Sin resultados para el filtro/búsqueda actual -->
+          <div class="no-results">
+            <mat-icon aria-hidden="true">search_off</mat-icon>
+            <p>No hay tareas que coincidan con tu búsqueda.</p>
+            <button mat-button color="primary" (click)="clearFilters()">
+              Limpiar filtros
+            </button>
+          </div>
+        } @else {
+          <div class="table-wrap" *ngIf="!isMobile()">
+            <table mat-table [dataSource]="dataSource" matSort class="tasks-table">
+              <colgroup>
+                <col style="width: auto" />
+                <col style="width: 140px" />
+                <col style="width: 160px" />
+              </colgroup>
+
+              <!-- Columna: Tarea (título + descripción) - incluye acciones en hover -->
+              <ng-container matColumnDef="title">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Tarea</th>
+                <td mat-cell *matCellDef="let t" class="title-cell">
+                  <div class="row-inner">
+                    <div>
+                      <div class="cell-title">{{ t.title }}</div>
+                      @if (t.description) {
+                        <div class="cell-desc text-muted">{{ t.description }}</div>
+                      }
+                    </div>
+                    <div class="row-actions" aria-hidden="true">
+                      <button mat-icon-button matTooltip="Editar" aria-label="Editar tarea"
+                        (click)="$event.stopPropagation(); openEdit(t)">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button matTooltip="Eliminar" aria-label="Eliminar tarea"
+                        (click)="$event.stopPropagation(); deleteTask(t)">
+                        <mat-icon color="warn">delete</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </ng-container>
+
+              <!-- Columna: Estado (chip) -->
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Estado</th>
+                <td mat-cell *matCellDef="let t">
+                  <mat-chip-set>
+                    <mat-chip [disableRipple]="true" [class]="statusChipClass(t.status)">
+                      {{ statusLabel(t.status) }}
+                    </mat-chip>
+                  </mat-chip-set>
+                </td>
+              </ng-container>
+
+              <!-- Columna: Fecha límite -->
+              <ng-container matColumnDef="dueDate">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Fecha límite</th>
+                <td mat-cell *matCellDef="let t">
+                  @if (t.dueDate) {
+                    <span class="due" [class.due--overdue]="isOverdue(t)">
+                      <mat-icon aria-hidden="true">event</mat-icon>
+                      {{ t.dueDate | date:'dd/MM/yyyy':'UTC' }}
+                    </span>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+              </ng-container>
+
+              <!-- Acciones ahora aparecen al hacer hover dentro de cada fila (no columna separada) -->
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns" (click)="toggleRow(row)"></tr>
+            </table>
+          </div>
+
+          <div class="mobile-task-list" *ngIf="isMobile()">
+            @for (task of dataSource.data; track task.id) {
+              <div class="mobile-task-card" [class.expanded]="expandedTaskId() === task.id" (click)="toggleRow(task)">
+                <div class="mobile-task-card__header">
+                  <div>
+                    <div class="mobile-task-title">{{ task.title }}</div>
+                    <div class="mobile-task-meta">
+                      <span class="task-status" [class]="statusChipClass(task.status)">
+                        {{ statusLabel(task.status) }}
+                      </span>
+                      <span class="task-due">
+                        <mat-icon aria-hidden="true">event</mat-icon>
+                        @if (task.dueDate) {
+                          {{ task.dueDate | date:'dd/MM/yyyy':'UTC' }}
+                        } @else {
+                          —
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  <mat-icon class="mobile-task-toggle">
+                    @if (expandedTaskId() === task.id) { expand_less } @else { expand_more }
+                  </mat-icon>
+                </div>
+                @if (expandedTaskId() === task.id) {
+                  <div class="mobile-task-card__body">
+                    @if (task.description) {
+                      <p class="mobile-task-desc">{{ task.description }}</p>
+                    }
+                    <div class="mobile-task-actions">
+                      <button mat-flat-button color="primary" (click)="$event.stopPropagation(); openEdit(task)">
+                        <mat-icon>edit</mat-icon>
+                        Editar
+                      </button>
+                      <button mat-flat-button color="warn" (click)="$event.stopPropagation(); deleteTask(task)">
+                        <mat-icon>delete</mat-icon>
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <mat-paginator *ngIf="!isMobile()" [pageSizeOptions]="[5, 10, 25]" [pageSize]="10"
+                         showFirstLastButtons aria-label="Paginación de tareas" />
+        }
+      </mat-card>
+    }
+  </main>
+
+  <!-- FAB (acceso rápido en móvil) -->
+  <button mat-fab color="primary" class="fab" matTooltip="Nueva tarea"
+          aria-label="Nueva tarea" (click)="openCreate()">
+    <mat-icon>add</mat-icon>
+  </button>
+</div>

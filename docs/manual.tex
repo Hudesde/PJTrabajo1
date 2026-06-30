@@ -1,0 +1,604 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================================================
+%  Manual del proyecto To-Do (Fullstack) — explicado desde cero.
+%  Compilar con:  pdflatex manual.tex   (dos veces, para el índice)
+% ============================================================================
+
+% ---- Codificación portable (funciona con pdflatex y con xelatex) ----
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+\else
+  \usepackage{fontspec}
+\fi
+
+\usepackage[spanish,es-noquoting]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!55!black, urlcolor=blue!55!black}
+
+% ---- Colores ----
+\definecolor{frontcol}{HTML}{4F46E5}
+\definecolor{backcol}{HTML}{16A34A}
+\definecolor{dbcol}{HTML}{B45309}
+\definecolor{codebg}{HTML}{F6F8FA}
+\definecolor{codekw}{HTML}{0550AE}
+\definecolor{codecom}{HTML}{6A737D}
+\definecolor{codestr}{HTML}{0A7E07}
+
+% ---- Estilo base para código ----
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codekw}\bfseries,
+  commentstyle=\color{codecom}\itshape,
+  stringstyle=\color{codestr},
+  numberstyle=\tiny\color{codecom},
+  breaklines=true,
+  showstringspaces=false,
+  frame=single,
+  rulecolor=\color{gray!30},
+  framesep=6pt,
+  xleftmargin=10pt,
+  tabsize=2,
+  literate=%
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+    {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+
+% TypeScript no viene de fábrica en listings: lo definimos.
+\lstdefinelanguage{TypeScript}{
+  keywords={const,let,var,function,return,import,from,export,class,interface,
+    extends,implements,public,private,readonly,new,if,else,for,of,this,
+    null,true,false,async,await,type,void},
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]",
+  morestring=[b]`,
+}
+
+% ---- Cajas de "Analogía", "Nota" y "Ojo" ----
+\newtcolorbox{analogia}{colback=orange!8, colframe=orange!70!black,
+  fonttitle=\bfseries, title=Analogía, breakable, left=6pt, right=6pt}
+\newtcolorbox{nota}{colback=blue!6, colframe=blue!60!black,
+  fonttitle=\bfseries, title=Nota, breakable, left=6pt, right=6pt}
+\newtcolorbox{ojo}{colback=red!6, colframe=red!60!black,
+  fonttitle=\bfseries, title=¡Ojo!, breakable, left=6pt, right=6pt}
+
+% Comando corto para código en línea
+\newcommand{\code}[1]{\texttt{#1}}
+
+\titleformat{\section}{\Large\bfseries\color{black}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+
+% ============================================================================
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{3cm}
+{\Huge\bfseries Gestor de Tareas (To\,--\,Do)\par}
+\vspace{0.6cm}
+{\LARGE Manual explicado desde cero\par}
+\vspace{0.3cm}
+{\large \itshape «Tutorial para MC Burro» --- entiende tu propio proyecto\par}
+\vspace{2.5cm}
+\begin{tikzpicture}[node distance=1.4cm]
+  \node[draw, rounded corners, fill=frontcol!15, minimum width=3.2cm, minimum height=1cm] (f) {Frontend (Angular)};
+  \node[draw, rounded corners, fill=backcol!15, minimum width=3.2cm, minimum height=1cm, below=of f] (b) {Backend (Spring Boot)};
+  \node[draw, rounded corners, fill=dbcol!15, minimum width=3.2cm, minimum height=1cm, below=of b] (d) {Base de datos (PostgreSQL)};
+  \draw[-{Stealth}, thick] (f) -- node[right]{\footnotesize HTTP + JSON} (b);
+  \draw[-{Stealth}, thick] (b) -- node[right]{\footnotesize SQL (JDBC)} (d);
+\end{tikzpicture}
+\vfill
+{\large Aplicación Fullstack: Spring Boot 3 + Angular 18 + PostgreSQL\par}
+\vspace{0.5cm}
+{\large \today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================================================
+\section{Antes de empezar: las 3 piezas}
+
+Tu aplicación está formada por \textbf{tres programas} que trabajan juntos. Si
+entiendes qué hace cada uno, ya entendiste el 80\,\% del proyecto.
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{El frontend} (Angular): es lo que el usuario \emph{ve} en el
+  navegador (la pantalla de login, la lista de tareas, los botones).
+  \item \textbf{El backend} (Spring Boot): es el «cerebro». Recibe peticiones,
+  decide qué se puede hacer, aplica las reglas y habla con la base de datos.
+  \item \textbf{La base de datos} (PostgreSQL): es el «almacén» donde se guardan
+  los datos de forma permanente (usuarios y tareas), aunque apagues el equipo.
+\end{enumerate}
+
+\begin{analogia}
+Imagina un \textbf{restaurante}:
+\begin{itemize}[leftmargin=*]
+  \item El \textbf{comedor y el camarero} = el \textbf{frontend}. Es lo que tú,
+  cliente, ves y tocas. El camarero toma tu pedido y te trae los platos.
+  \item La \textbf{cocina} = el \textbf{backend}. Ahí se decide qué se puede
+  cocinar, se siguen las recetas (las reglas) y se preparan los platos.
+  \item La \textbf{despensa/almacén} = la \textbf{base de datos}. Guarda los
+  ingredientes (los datos). La cocina va a la despensa a coger o guardar cosas.
+\end{itemize}
+El cliente \emph{nunca} entra a la cocina ni a la despensa: sólo habla con el
+camarero. Igual que el navegador nunca habla directamente con la base de datos:
+siempre pasa por el backend.
+\end{analogia}
+
+\section{El panorama general}
+
+Cuando usas la app, la información viaja así:
+
+\begin{center}
+\begin{tikzpicture}[every node/.style={font=\small, align=center}, node distance=2.2cm]
+  \node[draw, rounded corners, fill=frontcol!15, minimum width=3.4cm, minimum height=1.1cm] (f) {Frontend\\\footnotesize Angular -- \texttt{:4200}};
+  \node[draw, rounded corners, fill=backcol!15, minimum width=3.4cm, minimum height=1.1cm, right=3.2cm of f] (b) {Backend\\\footnotesize Spring Boot -- \texttt{:8080}};
+  \node[draw, rounded corners, fill=dbcol!15, minimum width=3.4cm, minimum height=1.1cm, right=3.2cm of b] (d) {PostgreSQL\\\footnotesize \texttt{:5433}};
+  \draw[-{Stealth}, thick] ([yshift=4pt]f.east) -- node[above]{\footnotesize petición} ([yshift=4pt]b.west);
+  \draw[{Stealth}-, thick] ([yshift=-6pt]f.east) -- node[below]{\footnotesize respuesta} ([yshift=-6pt]b.west);
+  \draw[-{Stealth}, thick] ([yshift=4pt]b.east) -- node[above]{\footnotesize consulta} ([yshift=4pt]d.west);
+  \draw[{Stealth}-, thick] ([yshift=-6pt]b.east) -- node[below]{\footnotesize datos} ([yshift=-6pt]d.west);
+  \node[align=center, below=0.2cm of f, font=\scriptsize] {lo que VES};
+  \node[align=center, below=0.2cm of b, font=\scriptsize] {el CEREBRO};
+  \node[align=center, below=0.2cm of d, font=\scriptsize] {el ALMACÉN};
+\end{tikzpicture}
+\end{center}
+
+Cada pieza corre en su propio «puerto» (una especie de número de puerta del
+equipo): el frontend en el \texttt{4200}, el backend en el \texttt{8080} y la
+base de datos en el \texttt{5433}.
+
+\section{¿Qué es una API REST? (HTTP y JSON sin dolor)}
+
+El frontend y el backend hablan por \textbf{HTTP}, el mismo protocolo que usa el
+navegador para abrir páginas web. Una \textbf{API REST} es, simplemente, una
+lista de «direcciones» (URLs) a las que el frontend puede mandar peticiones para
+pedir o cambiar datos.
+
+Cada petición usa un \textbf{verbo} que indica la intención:
+
+\begin{center}
+\begin{tabular}{ll}
+\textbf{Verbo HTTP} & \textbf{Significado} \\\hline
+\texttt{GET}    & «Dame información» (leer) \\
+\texttt{POST}   & «Crea algo nuevo» \\
+\texttt{PUT}    & «Actualiza algo que ya existe» \\
+\texttt{DELETE} & «Borra algo» \\
+\end{tabular}
+\end{center}
+
+El backend responde con un \textbf{código de estado} que dice cómo fue:
+
+\begin{center}
+\begin{tabular}{ll}
+\textbf{Código} & \textbf{Significado} \\\hline
+\texttt{200 / 201} & Todo bien (201 = «creado») \\
+\texttt{400} & Mandaste datos mal (validación) \\
+\texttt{401} & No estás identificado (falta token o caducó) \\
+\texttt{404} & No existe lo que pides \\
+\texttt{409} & Conflicto (p.\,ej. usuario ya registrado) \\
+\end{tabular}
+\end{center}
+
+Los datos viajan en formato \textbf{JSON}, que es texto fácil de leer. Por
+ejemplo, una tarea se ve así:
+
+\begin{lstlisting}[language=,]
+{
+  "id": 1,
+  "title": "Comprar pan",
+  "status": "PENDIENTE",
+  "dueDate": "2026-07-15"
+}
+\end{lstlisting}
+
+\begin{analogia}
+JSON es como la \textbf{nota de pedido} del camarero: un papelito con un formato
+acordado («1 café, 2 tostadas») que tanto el comedor como la cocina entienden.
+\end{analogia}
+
+\section{El backend por dentro (Spring Boot)}
+
+\textbf{Spring Boot} es un framework de Java que te da «hecho» todo lo aburrido
+(servidor web, conexión a la base de datos, seguridad\ldots) para que tú sólo
+escribas la lógica de tu app.
+
+\subsection{Las capas: una cadena de montaje}
+
+El backend está organizado en \textbf{capas}, y una petición las atraviesa en
+orden. Esto mantiene el código ordenado: cada capa tiene un único trabajo.
+
+\begin{center}
+\begin{tikzpicture}[every node/.style={font=\small, align=center}, node distance=0.5cm]
+  \node[draw, rounded corners, fill=frontcol!10, minimum width=11cm, minimum height=0.9cm] (c) {\textbf{Controller} --- recibe la petición HTTP y valida la entrada};
+  \node[draw, rounded corners, fill=backcol!10, minimum width=11cm, minimum height=0.9cm, below=of c] (s) {\textbf{Service} --- aplica las reglas de negocio (p.\,ej. «sólo tus tareas»)};
+  \node[draw, rounded corners, fill=dbcol!10, minimum width=11cm, minimum height=0.9cm, below=of s] (r) {\textbf{Repository} --- habla con la base de datos (sin escribir SQL a mano)};
+  \node[draw, rounded corners, fill=gray!12, minimum width=11cm, minimum height=0.9cm, below=of r] (d) {\textbf{Base de datos} --- guarda y devuelve los datos};
+  \draw[-{Stealth}] (c) -- (s);
+  \draw[-{Stealth}] (s) -- (r);
+  \draw[-{Stealth}] (r) -- (d);
+\end{tikzpicture}
+\end{center}
+
+\begin{analogia}
+En la cocina: el \textbf{Controller} es el \emph{pase} (donde se reciben las
+comandas), el \textbf{Service} es el \emph{chef} (sabe las recetas y las reglas),
+y el \textbf{Repository} es el \emph{ayudante} que va a la despensa a por los
+ingredientes.
+\end{analogia}
+
+Así se ve el Controller de tareas (archivo
+\verb|TaskController.java|). Fíjate que es muy «fino»: sólo recibe y delega.
+
+\begin{lstlisting}[language=Java]
+@RestController
+@RequestMapping("/api/tasks")   // todas las rutas empiezan por /api/tasks
+public class TaskController {
+
+  private final TaskService taskService;   // delega en el Service
+
+  // GET /api/tasks  -> lista las tareas del usuario autenticado
+  @GetMapping
+  public List<TaskResponse> list(@AuthenticationPrincipal UserDetails user,
+                                 @RequestParam(required = false) TaskStatus status) {
+    return taskService.list(user.getUsername(), status);
+  }
+
+  // POST /api/tasks -> crea una tarea
+  @PostMapping
+  public ResponseEntity<TaskResponse> create(@AuthenticationPrincipal UserDetails user,
+                                             @Valid @RequestBody TaskRequest request) {
+    return ResponseEntity.status(201).body(taskService.create(user.getUsername(), request));
+  }
+}
+\end{lstlisting}
+
+\subsection{Entidades y DTOs: dos cosas distintas}
+
+\begin{itemize}[leftmargin=*]
+  \item Una \textbf{Entidad} (\verb|Task.java|, \verb|User.java|) representa una
+  \emph{tabla} de la base de datos. Es la forma «interna» de los datos.
+  \item Un \textbf{DTO} (\emph{Data Transfer Object}) es la forma «pública» que
+  viaja por HTTP. Por ejemplo \verb|TaskRequest| (lo que entra) y
+  \verb|TaskResponse| (lo que sale).
+\end{itemize}
+
+\begin{nota}
+¿Por qué separarlos? Porque la entidad \verb|User| guarda la \textbf{contraseña
+cifrada}, y eso \emph{jamás} debe salir hacia el navegador. Usando DTOs decides
+exactamente qué se muestra y qué no.
+\end{nota}
+
+\subsection{Validación automática}
+
+En los DTOs se ponen «etiquetas» que comprueban los datos antes de procesarlos:
+
+\begin{lstlisting}[language=Java]
+public record RegisterRequest(
+    @NotBlank @Size(min = 3, max = 50) String username,   // obligatorio, 3-50 letras
+    @NotBlank @Size(min = 6)           String password    // obligatorio, 6+ letras
+) {}
+\end{lstlisting}
+
+Si el usuario manda una contraseña de 3 letras, el backend responde \texttt{400}
+con un mensaje claro, \emph{sin} llegar siquiera a la base de datos.
+
+\subsection{Manejo de errores en un solo sitio}
+
+En vez de repetir \code{try/catch} por todos lados, hay una clase
+(\verb|GlobalExceptionHandler|) marcada con \code{@RestControllerAdvice} que
+«atrapa» cualquier error y lo convierte en una respuesta JSON uniforme con el
+código correcto (400, 401, 404, 409\ldots). Resultado: errores consistentes y
+controllers limpios.
+
+\subsection{Seguridad: contraseñas y JWT}
+
+Dos ideas clave:
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Las contraseñas se cifran} con un algoritmo llamado
+  \textbf{BCrypt} antes de guardarlas. En la base de datos no hay
+  «\texttt{secreto123}», sino algo como
+  \verb|$2a$10$N9qo8uL... (irreversible)|. Aunque alguien robe la base de datos,
+  no ve las contraseñas reales.
+  \item \textbf{El token JWT} es un «pase» que el backend te entrega al iniciar
+  sesión. En cada petición siguiente lo enseñas para demostrar quién eres, sin
+  tener que reenviar tu contraseña.
+\end{enumerate}
+
+\begin{analogia}
+El JWT es como la \textbf{pulsera de una discoteca}: enseñas tu DNI \emph{una
+vez} en la entrada (login) y te ponen una pulsera (el token). Después, para
+entrar y salir, basta con enseñar la pulsera. El portero la mira y, si es
+auténtica y no ha caducado, te deja pasar.
+\end{analogia}
+
+\begin{nota}
+El token va firmado con una clave secreta que sólo conoce el servidor. Si
+alguien intenta falsificarlo, la firma no cuadra y el backend lo rechaza con un
+\texttt{401}.
+\end{nota}
+
+\subsection{Flyway: el historial de la base de datos}
+
+¿Cómo se crean las tablas? Con \textbf{Flyway}. Son archivos SQL numerados
+(\verb|V1__create_users_table.sql|, \verb|V2__create_tasks_table.sql|) que se
+ejecutan \textbf{automáticamente} la primera vez que arranca el backend.
+
+\begin{analogia}
+Flyway es como el \textbf{libro de recetas con fecha} de la cocina: «paso 1,
+montamos esta estancia; paso 2, añadimos esta otra». Cualquiera que abra el
+restaurante en otro local obtiene exactamente la misma cocina, en el mismo orden.
+\end{analogia}
+
+\section{El frontend por dentro (Angular)}
+
+\textbf{Angular} es un framework para construir la parte visual. La app es una
+\emph{SPA} (Single Page Application): el navegador carga una vez y luego cambia
+de pantalla sin recargar, pidiendo sólo los datos al backend.
+
+\subsection{Componentes: las pantallas}
+
+Un \textbf{componente} es una pieza de interfaz. Cada uno tiene 3 archivos:
+
+\begin{center}
+\begin{tabular}{ll}
+\texttt{.ts}   & la lógica (qué pasa al pulsar un botón) \\
+\texttt{.html} & lo que se ve (la estructura visual) \\
+\texttt{.css}  & cómo se ve (colores, tamaños) \\
+\end{tabular}
+\end{center}
+
+En el proyecto hay dos pantallas: \verb|login.component| (login/registro) y
+\verb|dashboard.component| (la lista de tareas con el menú lateral).
+
+\subsection{Servicios: el que hace las llamadas}
+
+La lógica de \emph{hablar con el backend} no vive en los componentes, sino en
+\textbf{servicios} (\verb|auth.service.ts|, \verb|task.service.ts|). Así el
+componente sólo dice «créame esta tarea» y el servicio se encarga del HTTP.
+
+\begin{lstlisting}[language=TypeScript]
+@Injectable({ providedIn: 'root' })
+export class TaskService {
+  private http = inject(HttpClient);
+  private baseUrl = 'http://localhost:8080/api/tasks';
+
+  // Devuelve las tareas; si se pasa un estado, filtra por él.
+  list(status?: TaskStatus | null) {
+    let params = new HttpParams();
+    if (status) params = params.set('status', status);
+    return this.http.get<Task[]>(this.baseUrl, { params });
+  }
+
+  create(task: TaskRequest) { return this.http.post<Task>(this.baseUrl, task); }
+}
+\end{lstlisting}
+
+\subsection{El interceptor: pone la «pulsera» en cada petición}
+
+El \textbf{interceptor} (\verb|auth.interceptor.ts|) es un «portero» que
+intercepta \emph{todas} las peticiones salientes y les añade automáticamente el
+token JWT. Así ningún servicio tiene que acordarse de hacerlo.
+
+\begin{lstlisting}[language=TypeScript]
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const token = inject(AuthService).getToken();
+  const authReq = token
+    ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+    : req;
+  return next(authReq);   // continúa la petición, ya con el token puesto
+};
+\end{lstlisting}
+
+\subsection{El guard: el portero de las rutas}
+
+El \textbf{guard} (\verb|auth.guard.ts|) protege la ruta del dashboard: si no hay
+sesión, te manda al login. Es lo que impide entrar al tablero escribiendo la URL
+a mano sin haber iniciado sesión.
+
+\subsection{Reactive Forms y el filtro de estado}
+
+Los formularios (login y crear/editar tarea) usan \textbf{Reactive Forms}: el
+formulario se define en el código TypeScript, lo que facilita validarlo. El
+\textbf{filtro por estado} del menú lateral también es un control reactivo: cada
+vez que eliges «Pendientes», «Completadas», etc., su valor cambia y la lista se
+recarga pidiendo al backend sólo esas tareas.
+
+\section{¿Cómo se comunican? El viaje de una petición}
+
+Juntemos todo. Esto es lo que pasa, paso a paso, cuando \textbf{creas una tarea}:
+
+\begin{enumerate}[leftmargin=*]
+  \item Pulsas «Guardar» en el navegador. El \textbf{componente} llama a
+  \verb|TaskService.create(...)|.
+  \item El \textbf{servicio} hace un \texttt{POST} a
+  \verb|http://localhost:8080/api/tasks| con la tarea en JSON.
+  \item El \textbf{interceptor} añade la cabecera
+  \verb|Authorization: Bearer <token>|.
+  \item Llega al \textbf{backend}. Un filtro de seguridad valida el token y sabe
+  quién eres.
+  \item El \textbf{Controller} recibe la petición, valida los datos y llama al
+  \textbf{Service}.
+  \item El \textbf{Service} crea la tarea asociándola a \emph{tu} usuario y pide
+  al \textbf{Repository} que la guarde.
+  \item El \textbf{Repository} hace un \texttt{INSERT} en \textbf{PostgreSQL}.
+  \item El backend responde \texttt{201} con la tarea creada (en JSON).
+  \item El frontend recibe la respuesta y refresca la lista en pantalla.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[every node/.style={font=\scriptsize, align=center}]
+  \node[draw, rounded corners, fill=frontcol!15, minimum width=2.6cm] (f) {Componente\\+ Servicio};
+  \node[draw, rounded corners, fill=orange!15, right=1.4cm of f, minimum width=2.0cm] (i) {Interceptor\\(pone token)};
+  \node[draw, rounded corners, fill=backcol!15, right=1.4cm of i, minimum width=2.6cm] (b) {Backend\\Controller/Service};
+  \node[draw, rounded corners, fill=dbcol!15, right=1.4cm of b, minimum width=2.0cm] (d) {PostgreSQL};
+  \draw[-{Stealth}] (f) -- (i);
+  \draw[-{Stealth}] (i) -- (b);
+  \draw[-{Stealth}] (b) -- (d);
+  \draw[{Stealth}-, dashed] ([yshift=-10pt]f.south east) -- ([yshift=-10pt]d.south west)
+    node[midway, below]{respuesta JSON (201 + tarea)};
+\end{tikzpicture}
+\end{center}
+
+\subsection{El flujo de login con JWT}
+
+\begin{enumerate}[leftmargin=*]
+  \item Mandas usuario y contraseña a \verb|/api/auth/login|.
+  \item El backend comprueba la contraseña (BCrypt) y, si es correcta, te
+  devuelve un \textbf{token JWT}.
+  \item El frontend guarda el token (en el \emph{localStorage} del navegador).
+  \item En cada petición, el interceptor envía ese token.
+  \item Si el token caduca, el backend responde \texttt{401} y el frontend te
+  devuelve al login automáticamente.
+\end{enumerate}
+
+\section{La base de datos (PostgreSQL)}
+
+\textbf{PostgreSQL} es una base de datos \emph{relacional}: guarda la información
+en \textbf{tablas} (como hojas de cálculo), con \textbf{filas} (cada registro) y
+\textbf{columnas} (cada dato).
+
+Nuestro proyecto tiene dos tablas:
+
+\begin{center}
+\begin{tikzpicture}[every node/.style={font=\footnotesize}]
+  \node[draw, rounded corners, fill=dbcol!10, align=left, minimum width=4.2cm] (u)
+    {\textbf{users}\\\hrulefill\\ id\\ username\\ password\_hash\\ created\_at};
+  \node[draw, rounded corners, fill=dbcol!10, align=left, right=3cm of u, minimum width=4.2cm] (t)
+    {\textbf{tasks}\\\hrulefill\\ id\\ title\\ description\\ status\\ due\_date\\ \textbf{user\_id} (FK)\\ created\_at / updated\_at};
+  \draw[-{Stealth}, thick] (t.west) -- node[above, font=\scriptsize]{pertenece a} (u.east);
+\end{tikzpicture}
+\end{center}
+
+La columna \verb|user_id| de \verb|tasks| es una \textbf{clave foránea} (FK): un
+«puntero» que dice a qué usuario pertenece cada tarea. Gracias a ella, el backend
+puede pedir «todas las tareas \emph{de este usuario}» y nunca mezclar las de unos
+con las de otros.
+
+\begin{nota}
+El backend se conecta a PostgreSQL mediante \textbf{JDBC} (el «cable» estándar de
+Java para bases de datos). La dirección, el usuario y la contraseña están en
+\verb|application.yml|. Tú no escribes SQL a mano: Spring Data JPA traduce
+métodos como \verb|findByOwnerIdAndStatus(...)| a consultas SQL por ti.
+\end{nota}
+
+\section{¿Qué es eso de Docker?}
+
+\textbf{El problema que resuelve.} ¿Te ha pasado que algo «funciona en mi
+máquina» pero no en otra? Eso ocurre porque cada equipo tiene versiones
+distintas de programas. \textbf{Docker} resuelve esto empaquetando un programa
+\emph{junto con todo lo que necesita} para funcionar, de modo que corra igual en
+cualquier sitio.
+
+\begin{description}[leftmargin=*]
+  \item[Imagen] una «plantilla» congelada con un programa y sus dependencias
+  (por ejemplo, «PostgreSQL 17 listo para usar»).
+  \item[Contenedor] una imagen \emph{en ejecución}. Puedes arrancar, parar y
+  borrar contenedores sin ensuciar tu equipo.
+\end{description}
+
+\begin{analogia}
+Una imagen Docker es como un \textbf{contenedor de mudanzas sellado}: dentro va
+todo lo necesario ya montado. Da igual el camión (tu equipo) que lo transporte:
+al abrirlo, todo está exactamente igual. Un contenedor es ese mismo cajón ya
+«abierto y funcionando».
+\end{analogia}
+
+\subsection{docker-compose: varios contenedores a la vez}
+
+En vez de arrancar cada contenedor a mano, el archivo \verb|docker-compose.yml|
+describe \emph{qué} servicios quieres y los levanta con un comando. El nuestro
+define dos: la base de datos (\code{db}) y la API (\code{api}).
+
+\begin{lstlisting}[language=,]
+services:
+  db:                          # contenedor de PostgreSQL
+    image: postgres:17-alpine
+    ports: ["5433:5432"]       # puerto 5433 de tu equipo -> 5432 del contenedor
+  api:                         # contenedor del backend
+    build: ./backend           # se construye con el Dockerfile del backend
+    depends_on: [db]           # espera a que la base de datos esté lista
+    ports: ["8080:8080"]
+\end{lstlisting}
+
+Con \verb|docker compose up -d db| levantas sólo la base de datos; con
+\verb|docker compose up --build| levantas base de datos + backend.
+
+\begin{ojo}
+En \textbf{este equipo no hay Docker instalado}. Por eso, para poder ejecutar el
+proyecto, instalamos un \textbf{PostgreSQL «portable»} en tu carpeta personal
+(\verb|~/.local|), sin permisos de administrador. Es el \emph{mismo} PostgreSQL
+real, sólo que arrancado sin Docker. Se gestiona con el comando \code{todo-pg}
+(\code{start}, \code{stop}, \code{status}). El \verb|docker-compose.yml| sigue
+ahí y funcionará el día que instales Docker (y es uno de los entregables pedidos).
+\end{ojo}
+
+\section{Cómo se ejecuta todo}
+
+Hacen falta las tres piezas a la vez. En este equipo:
+
+\begin{lstlisting}[language=bash]
+# 1) Base de datos (PostgreSQL local, ya configurado)
+todo-pg start                    # arranca en el puerto 5433
+
+# 2) Backend  (en una terminal)
+cd backend && mvn spring-boot:run        # API en http://localhost:8080
+
+# 3) Frontend (en otra terminal)
+cd frontend && npm start                 # UI en http://localhost:4200
+\end{lstlisting}
+
+Luego abre \textbf{http://localhost:4200} en el navegador. Para explorar la API
+directamente, entra a \textbf{http://localhost:8080/swagger-ui.html}.
+
+\section{Glosario rápido}
+
+\begin{description}[leftmargin=*, style=nextline]
+  \item[API REST] Conjunto de URLs del backend a las que el frontend pide o
+  cambia datos por HTTP.
+  \item[Endpoint] Una de esas URLs concretas (p.\,ej. \verb|/api/tasks|).
+  \item[HTTP] El protocolo de comunicación de la web (verbos GET, POST\ldots).
+  \item[JSON] Formato de texto para intercambiar datos.
+  \item[JWT] Token firmado que demuestra tu identidad sin reenviar la contraseña.
+  \item[BCrypt] Algoritmo para cifrar contraseñas de forma irreversible.
+  \item[Entidad] Clase Java que representa una tabla de la base de datos.
+  \item[DTO] Objeto que define qué datos entran/salen por la API.
+  \item[ORM / JPA] Tecnología que traduce objetos Java a filas de la base de
+  datos (y al revés), evitando escribir SQL a mano.
+  \item[Flyway] Herramienta que crea/versiona el esquema de la base de datos con
+  scripts SQL numerados.
+  \item[SPA] Aplicación web que carga una vez y cambia de pantalla sin recargar.
+  \item[Componente] Pieza visual de Angular (lógica + HTML + CSS).
+  \item[Servicio] Clase de Angular que centraliza la lógica (p.\,ej. llamadas HTTP).
+  \item[Guard] «Portero» que decide si se puede entrar a una ruta.
+  \item[Interceptor] «Portero» que modifica las peticiones HTTP (aquí, añade el token).
+  \item[Docker] Tecnología para empaquetar programas con todo lo que necesitan.
+  \item[Contenedor] Una imagen Docker en ejecución.
+\end{description}
+
+\vspace{1cm}
+\begin{center}
+\itshape ¡Y eso es todo! Si entiendes el viaje de una petición
+(Sección 7), ya puedes explicar el proyecto entero.
+\end{center}
+
+\end{document}

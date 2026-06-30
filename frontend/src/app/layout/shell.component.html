@@ -1,0 +1,80 @@
+<!-- Fondo decorativo (imagen Gemini) difuminado: sólo visible en los laterales. -->
+<div class="bg" aria-hidden="true"></div>
+
+<!-- "Escenario" centrado y opaco: el contenido va aquí; los laterales dejan
+     ver el fondo difuminado. -->
+<mat-sidenav-container class="stage" autosize>
+
+  <!-- ===================== Menú lateral (hamburguesa) ===================== -->
+  <mat-sidenav class="drawer" mode="over"
+               [opened]="menuOpen()"
+               (openedChange)="menuOpen.set($event)">
+    <div class="drawer__brand">
+      <span class="brand-mark"><mat-icon>task_alt</mat-icon></span>
+      <span class="drawer__title">Gestor de Tareas</span>
+    </div>
+    <mat-divider></mat-divider>
+
+    <mat-nav-list>
+      @for (item of navItems; track item.label) {
+        <a mat-list-item
+           [routerLink]="item.link"
+           [queryParams]="item.queryParams"
+           routerLinkActive="active-link"
+           (click)="menuOpen.set(false)">
+          <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+          <span matListItemTitle>{{ item.label }}</span>
+        </a>
+        @if (item.children) {
+          <mat-nav-list class="subnav-list">
+            @for (child of item.children; track child.label) {
+              <a mat-list-item
+                 class="subnav-item"
+                 [routerLink]="child.link"
+                 [queryParams]="child.queryParams"
+                 routerLinkActive="active-link"
+                 (click)="menuOpen.set(false)">
+                <mat-icon matListItemIcon>{{ child.icon }}</mat-icon>
+                <span matListItemTitle>{{ child.label }}</span>
+              </a>
+            }
+          </mat-nav-list>
+        }
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <!-- ===================== Contenido ===================== -->
+  <mat-sidenav-content class="content-area">
+
+    <!-- Header estático -->
+    <mat-toolbar class="header">
+      <button mat-icon-button (click)="toggleMenu()"
+              matTooltip="Menú" aria-label="Abrir o cerrar el menú">
+        <mat-icon>menu</mat-icon>
+      </button>
+
+      <span class="brand-mark header__mark"><mat-icon>task_alt</mat-icon></span>
+      <span class="header__title">{{ pageTitle() }}</span>
+
+      <span class="spacer"></span>
+
+      <button mat-button [matMenuTriggerFor]="userMenu" class="user-btn">
+        <mat-icon>account_circle</mat-icon>
+        <span class="user-name">{{ username() }}</span>
+        <mat-icon>arrow_drop_down</mat-icon>
+      </button>
+      <mat-menu #userMenu="matMenu">
+        <button mat-menu-item (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          <span>Cerrar sesión</span>
+        </button>
+      </mat-menu>
+    </mat-toolbar>
+
+    <!-- Página activa (dashboard o calendario) -->
+    <div class="page">
+      <router-outlet />
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

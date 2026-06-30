@@ -1,0 +1,5 @@
+# Evita copiar artefactos pesados o innecesarios al contexto de build de Docker.
+target/
+*.iml
+.idea/
+.git/
