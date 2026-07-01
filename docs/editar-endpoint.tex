@@ -1,0 +1,307 @@
+% ============================================================================
+%  Guía: cómo editar (o ampliar) un endpoint en este proyecto To-Do.
+%
+%  Compilar con:   pdflatex editar-endpoint.tex
+%  (No usa babel-spanish para no depender de paquetes extra; los acentos
+%   funcionan con inputenc/fontenc + lmodern.)
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amssymb}          % \square para la lista de comprobación
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+% ---------- Colores y estilo para los bloques de código ----------
+\definecolor{codebg}{RGB}{245,245,247}
+\definecolor{codekw}{RGB}{0,90,160}
+\definecolor{codecmt}{RGB}{120,120,120}
+\definecolor{codestr}{RGB}{160,60,20}
+\definecolor{rulecol}{RGB}{210,210,215}
+
+\lstdefinestyle{codigo}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{codekw}\bfseries,
+  commentstyle=\color{codecmt}\itshape,
+  stringstyle=\color{codestr},
+  frame=single,
+  rulecolor=\color{rulecol},
+  breaklines=true,
+  showstringspaces=false,
+  columns=fullflexible,
+  tabsize=2,
+  captionpos=b,
+  % 'listings' no entiende UTF-8 por sí solo: mapeamos los caracteres
+  % acentuados que aparecen dentro de los bloques de código.
+  literate=%
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+    {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {Ü}{{\"U}}1
+    {¿}{{?`}}1 {¡}{{!`}}1,
+}
+\lstset{style=codigo}
+
+\newcommand{\archivo}[1]{\texttt{#1}}
+
+\title{\textbf{Cómo editar un endpoint}\\[2pt]
+       \large Proyecto To-Do (Spring Boot + Angular)}
+\author{Guía técnica interna}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent Esta guía explica, paso a paso y en orden, cómo modificar un endpoint
+de la API cuando hay que añadir o cambiar un campo (por ejemplo, añadir el campo
+\emph{prioridad} a las tareas). Cubre el recorrido completo: base de datos,
+entidad, DTOs, servicio, controlador, pruebas y el frontend de Angular.
+Al final hay una \textbf{lista de comprobación} y los \textbf{errores más
+comunes} (y cómo evitarlos).
+\end{abstract}
+
+\tableofcontents
+\vspace{1em}
+
+% ============================================================================
+\section{Arquitectura por capas}
+% ============================================================================
+El backend está organizado en capas. Una petición HTTP atraviesa siempre el
+mismo camino, y por eso una modificación suele tocar \emph{todas} las capas de
+forma coherente:
+
+\begin{center}
+\ttfamily
+Cliente (Angular) $\rightarrow$ Controller $\rightarrow$ Service $\rightarrow$
+Repository (JPA) $\rightarrow$ Base de datos (PostgreSQL)
+\end{center}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Entidad} (\archivo{Task.java}): mapea la tabla a un objeto Java (JPA/Hibernate).
+  \item \textbf{DTOs} (\archivo{TaskRequest}, \archivo{TaskResponse}): datos que
+        \emph{entran} y \emph{salen} de la API. Nunca se expone la entidad directamente.
+  \item \textbf{Service} (\archivo{TaskService}): lógica de negocio y transacciones.
+  \item \textbf{Controller} (\archivo{TaskController}): expone las rutas HTTP y valida la entrada.
+  \item \textbf{Migración Flyway}: crea/versiona el esquema de la base de datos.
+\end{itemize}
+
+\noindent\textbf{Regla clave:} la entidad, los DTOs y el esquema de la base de
+datos deben describir \emph{los mismos} campos. Si añades un campo a la entidad
+pero no a la tabla (o al revés), Hibernate falla al arrancar con \texttt{ddl-auto:
+validate}.
+
+% ============================================================================
+\section{Paso 0: la regla de oro de las migraciones}
+% ============================================================================
+\begin{quote}
+\textbf{Nunca edites una migración de Flyway que ya se aplicó.} Crea siempre una
+migración \emph{nueva} con el siguiente número de versión.
+\end{quote}
+
+Flyway guarda un \emph{checksum} (huella) de cada script en la tabla
+\texttt{flyway\_schema\_history}. Si modificas un archivo ya aplicado, el
+checksum local deja de coincidir con el guardado y la aplicación \textbf{no
+arranca}, con un error como:
+
+\begin{lstlisting}[language=bash]
+FlywayValidateException: Migration checksum mismatch for migration version 2
+-> Applied to database : -509265412
+-> Resolved locally    : 1048635791
+\end{lstlisting}
+
+Por eso, para añadir la columna \texttt{priority} a una tabla que \emph{ya
+existe}, lo correcto es crear \archivo{V3\_\_add\_priority\_to\_tasks.sql}:
+
+\begin{lstlisting}[language=SQL,caption={backend/src/main/resources/db/migration/V3\_\_add\_priority\_to\_tasks.sql}]
+-- Añade la columna de prioridad a una tabla ya existente.
+-- Se usa un DEFAULT temporal para no romper las filas ya guardadas
+-- (la columna es NOT NULL); luego se puede quitar el DEFAULT.
+ALTER TABLE tasks
+    ADD COLUMN priority VARCHAR(20) NOT NULL DEFAULT 'MEDIA';
+
+ALTER TABLE tasks
+    ALTER COLUMN priority DROP DEFAULT;
+\end{lstlisting}
+
+\noindent Si \emph{ya} editaste una migración aplicada y el proyecto está roto,
+tienes dos opciones para recuperarte en un entorno de desarrollo:
+\begin{enumerate}[leftmargin=1.6em]
+  \item Ejecutar \texttt{flyway repair} para re-sincronizar el checksum (no
+        modifica el esquema, sólo el historial), \emph{o}
+  \item Recrear la base de datos desde cero para que Flyway vuelva a aplicar
+        todas las migraciones. Sólo válido si puedes perder los datos.
+\end{enumerate}
+
+% ============================================================================
+\section{Pasos en el backend}
+% ============================================================================
+
+\subsection{1. La migración de base de datos}
+Crea la migración nueva (ver Paso 0). Comprueba que el tipo y las restricciones
+(\texttt{NOT NULL}, longitud) coincidan con lo que declararás en la entidad.
+
+\subsection{2. La entidad JPA}
+Añade el atributo, su \texttt{getter/setter} y (si aplica) al constructor de
+conveniencia. Un \texttt{enum} se guarda como texto con \texttt{@Enumerated}:
+
+\begin{lstlisting}[language=Java,caption={backend/.../task/Task.java}]
+/** Prioridad de la tarea. Se guarda como texto (BAJA / MEDIA / ALTA). */
+@Enumerated(EnumType.STRING)
+@Column(name = "priority", nullable = false, length = 20)
+private TaskPriority priority;
+
+public TaskPriority getPriority()            { return priority; }
+public void setPriority(TaskPriority p)      { this.priority = p; }
+\end{lstlisting}
+
+\subsection{3. El enum (si el campo es un conjunto cerrado de valores)}
+\begin{lstlisting}[language=Java,caption={backend/.../task/TaskPriority.java}]
+public enum TaskPriority {
+    BAJA,
+    MEDIA,   // OJO: el valor real es MEDIA (no "NORMAL")
+    ALTA
+}
+\end{lstlisting}
+\textbf{Consistencia:} el enum es la \emph{fuente de verdad} de los valores. El
+frontend y los comentarios del SQL deben usar exactamente los mismos.
+
+\subsection{4. Los DTOs (entrada y salida)}
+En \archivo{TaskRequest} añade el campo con su validación; en \archivo{TaskResponse}
+añádelo también y mapéalo desde la entidad.
+
+\begin{lstlisting}[language=Java,caption={TaskRequest.java (entrada) y TaskResponse.java (salida)}]
+// --- TaskRequest: lo que envía el cliente ---
+@NotNull(message = "La prioridad es obligatoria")
+TaskPriority priority,
+
+// --- TaskResponse: lo que devuelve la API ---
+// (añadir el campo al record y al método fromEntity)
+task.getPriority(),
+\end{lstlisting}
+
+\subsection{5. El servicio}
+Propaga el campo tanto al \emph{crear} como al \emph{actualizar}:
+\begin{lstlisting}[language=Java,caption={TaskService.java}]
+// create(...)
+Task task = new Task(request.title(), request.description(),
+                     request.status(), request.priority(),
+                     request.dueDate(), owner);
+
+// update(...)  -> dirty checking de JPA hace el UPDATE
+task.setPriority(request.priority());
+\end{lstlisting}
+
+\subsection{6. El controlador}
+En este proyecto el \archivo{TaskController} recibe y devuelve DTOs, así que
+normalmente \textbf{no hay que cambiar nada}: al ampliar los DTOs, el nuevo campo
+viaja solo. Sólo se toca si cambias la \emph{firma} del endpoint (ruta, método
+HTTP, parámetros).
+
+\subsection{7. Las pruebas}
+Actualiza los tests para que el nuevo campo forme parte de los datos de prueba y
+verifica que se refleja en la respuesta:
+\begin{lstlisting}[language=Java,caption={TaskServiceTest.java}]
+TaskRequest request = new TaskRequest(
+    "Comprar pan", "Integral", TaskStatus.PENDIENTE,
+    TaskPriority.MEDIA, LocalDate.now());
+...
+assertThat(result.priority()).isEqualTo(TaskPriority.MEDIA);
+\end{lstlisting}
+
+% ============================================================================
+\section{Pasos en el frontend (Angular)}
+% ============================================================================
+
+\subsection{1. El modelo TypeScript}
+Refleja los mismos tipos que el backend en \archivo{core/models/task.model.ts}:
+\begin{lstlisting}[language=Java,caption={task.model.ts (el tipo debe coincidir con el enum del backend)}]
+export type TaskPriority = 'BAJA' | 'MEDIA' | 'ALTA';
+
+// Añadir 'priority' a las interfaces Task y TaskRequest, y una lista
+// reutilizable de opciones con etiqueta legible:
+export const TASK_PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
+  { value: 'BAJA',  label: 'Baja'  },
+  { value: 'MEDIA', label: 'Media' },
+  { value: 'ALTA',  label: 'Alta'  },
+];
+\end{lstlisting}
+
+\subsection{2. El formulario (diálogo de alta/edición)}
+Añade el control al \texttt{FormGroup}, la opción al \texttt{<mat-select>} y el
+campo tanto al precargar (edición) como al construir el \texttt{TaskRequest}.
+
+\subsection{3. La tabla y los filtros del dashboard}
+\textbf{Cuidado con dos trampas frecuentes de Angular Material:}
+
+\begin{enumerate}[leftmargin=1.6em]
+  \item Si añades una columna a \texttt{displayedColumns}, \emph{debes} crear su
+        \texttt{<ng-container matColumnDef="...">} en la plantilla. Si no, la
+        tabla falla en tiempo de ejecución con
+        \texttt{"Could not find column with id ..."} (no lo detecta la
+        compilación).
+  \item Un filtro no funciona sólo con pintar el \texttt{<mat-select>}: hay que
+        \emph{suscribirse} a sus \texttt{valueChanges}, usarlo dentro de la
+        función de filtrado y resetearlo al limpiar filtros.
+\end{enumerate}
+
+% ============================================================================
+\section{Verificación}
+% ============================================================================
+\begin{lstlisting}[language=bash]
+# Backend: compilar + pruebas
+cd backend && ./mvnw test
+# Backend: arrancar (aplica migraciones Flyway al inicio)
+./mvnw spring-boot:run
+
+# Frontend: compilar (detecta errores de tipos y de plantilla)
+cd frontend && npm run build
+# Frontend: servir en desarrollo
+npm start
+\end{lstlisting}
+
+% ============================================================================
+\section{Lista de comprobación}
+% ============================================================================
+\begin{enumerate}[leftmargin=1.6em]
+  \item[$\square$] Migración \textbf{nueva} (no editar una ya aplicada).
+  \item[$\square$] Entidad: campo + getter/setter + constructor.
+  \item[$\square$] Enum creado (si aplica) y usado como fuente de verdad.
+  \item[$\square$] DTOs de entrada y salida actualizados (con validación).
+  \item[$\square$] Servicio: crear \emph{y} actualizar.
+  \item[$\square$] Pruebas actualizadas y en verde.
+  \item[$\square$] Modelo TS con el mismo tipo que el backend.
+  \item[$\square$] Formulario: control + opción + carga + envío.
+  \item[$\square$] Tabla: \texttt{displayedColumns} \emph{y} \texttt{matColumnDef}.
+  \item[$\square$] Filtro suscrito, aplicado y reseteado.
+  \item[$\square$] \texttt{./mvnw test} y \texttt{npm run build} sin errores.
+\end{enumerate}
+
+% ============================================================================
+\section{Errores comunes (y cómo evitarlos)}
+% ============================================================================
+\begin{description}[leftmargin=0em,style=nextline]
+  \item[Checksum de Flyway.] Editar una migración ya aplicada. \emph{Solución:}
+        crear una migración nueva; nunca tocar las aplicadas.
+  \item[Hibernate \texttt{validate} falla al arrancar.] La entidad y la tabla no
+        coinciden. \emph{Solución:} que la columna (tipo, \texttt{NOT NULL},
+        longitud) case con la anotación \texttt{@Column}.
+  \item[\texttt{Could not find column with id ...}] Añadir la columna a
+        \texttt{displayedColumns} sin su \texttt{matColumnDef}. \emph{Solución:}
+        crear el \texttt{<ng-container matColumnDef>} correspondiente.
+  \item[El filtro/menú "no hace nada".] Un control declarado pero no conectado a
+        la lógica (sin \texttt{valueChanges}), o un \texttt{<mat-sidenav>}
+        desligado de la señal que lo controla. \emph{Solución:} mantener el
+        \texttt{[opened]}/\texttt{valueChanges} enlazados con el estado del
+        componente.
+  \item[Valores desalineados.] El enum dice \texttt{MEDIA} pero un comentario o
+        el frontend dicen \texttt{NORMAL}. \emph{Solución:} el enum manda; todo
+        lo demás debe copiar sus valores exactos.
+\end{description}
+
+\end{document}

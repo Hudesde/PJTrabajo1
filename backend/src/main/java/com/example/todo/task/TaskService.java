@@ -59,6 +59,7 @@ public class TaskService {
                 request.title(),
                 request.description(),
                 request.status(),
+                request.priority(),
                 request.dueDate(),
                 owner);
         Task saved = taskRepository.save(task);
@@ -72,6 +73,7 @@ public class TaskService {
         task.setTitle(request.title());
         task.setDescription(request.description());
         task.setStatus(request.status());
+        task.setPriority(request.priority());
         task.setDueDate(request.dueDate());
         // Al estar dentro de una transacción, JPA detecta el cambio y hace
         // UPDATE automáticamente (dirty checking); save() es opcional pero

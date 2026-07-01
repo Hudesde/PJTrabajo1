@@ -44,14 +44,26 @@
         </mat-select>
       </mat-form-field>
 
-      <!-- Fecha límite -->
+      <!-- Prioridad -->
+      <mat-form-field appearance="outline" class="half">
+        <mat-label>Prioridad</mat-label>
+        <mat-select formControlName="priority">
+          @for (opt of priorityOptions; track opt.value) {
+            <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <!--  Fecha límite -->
       <mat-form-field appearance="outline" class="half">
         <mat-label>Fecha límite</mat-label>
         <input matInput [matDatepicker]="picker" formControlName="dueDate" />
         <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
         <mat-datepicker #picker></mat-datepicker>
       </mat-form-field>
-    </div>
+      
+    </div>  
+    
 
   </mat-dialog-content>
 

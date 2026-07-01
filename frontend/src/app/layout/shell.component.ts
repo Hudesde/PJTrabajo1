@@ -1,7 +1,5 @@
 import {
-  AfterViewInit,
   Component,
-  OnDestroy,
   inject,
   signal,
 } from '@angular/core';
@@ -30,17 +28,14 @@ interface NavItem {
   label: string;
   icon: string;
   link: string;
-  queryParams?: Record<string, unknown>;
-  children?: NavItem[];
 }
 
 /**
  * Layout principal de la app autenticada (shell).
  *
- * <p>Contiene el header estático y el menú lateral (hamburguesa). El menú se
- * muestra al entrar y se oculta automáticamente a los 4 segundos, dejando el
- * botón de 3 rayitas para volver a abrirlo. El título del header cambia según
- * la página activa (Gestor de Tareas / Calendario).
+ * <p>Contiene el header estático y el menú lateral (hamburguesa). El menú
+ * arranca oculto y sólo se abre/cierra con el botón de 3 rayitas. El título del
+ * header cambia según la página activa (Gestor de Tareas / Calendario).
  *
  * <p>No toca la lógica de negocio: sólo organiza la navegación y el layout.
  */
@@ -63,35 +58,23 @@ interface NavItem {
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.css',
 })
-export class ShellComponent implements AfterViewInit, OnDestroy {
+export class ShellComponent {
 
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
 
-  /** Opciones del menú lateral. */
+  /** Opciones del menú lateral (sin subopciones desplegables). */
   readonly navItems: NavItem[] = [
-    {
-      label: 'Gestor de Tareas',
-      icon: 'task_alt',
-      link: '/dashboard',
-      children: [
-        { label: 'Todas', icon: 'list_alt', link: '/dashboard', queryParams: {} },
-        { label: 'Completadas', icon: 'check_circle', link: '/dashboard', queryParams: { status: 'COMPLETADA' } },
-        { label: 'Pendientes', icon: 'schedule', link: '/dashboard', queryParams: { status: 'PENDIENTE' } },
-        { label: 'En progreso', icon: 'autorenew', link: '/dashboard', queryParams: { status: 'EN_PROGRESO' } },
-      ],
-    },
+    { label: 'Gestor de Tareas', icon: 'task_alt', link: '/dashboard' },
     { label: 'Calendario', icon: 'calendar_month', link: '/calendario' },
   ];
 
-  /** Estado del menú lateral (abierto/cerrado). */
+  /** Estado del menú lateral (abierto/cerrado). Arranca oculto. */
   readonly menuOpen = signal(false);
   /** Título de la página activa (se muestra en el header). */
   readonly pageTitle = signal('Gestor de Tareas');
   /** Usuario en sesión. */
   readonly username = this.authService.currentUser;
-
-  private autoCloseTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
     // El título refleja la ruta activa (dato 'label' de cada ruta).
@@ -101,23 +84,8 @@ export class ShellComponent implements AfterViewInit, OnDestroy {
     this.updateTitle();
   }
 
-  ngAfterViewInit(): void {
-    // Mostrar el menú al entrar y ocultarlo a los 4 segundos.
-    // Se difiere (setTimeout 0) para no provocar ExpressionChangedAfterItHasBeenChecked.
-    setTimeout(() => {
-      this.menuOpen.set(true);
-      this.autoCloseTimer = setTimeout(() => this.menuOpen.set(false), 4000);
-    });
-  }
-
-  ngOnDestroy(): void {
-    clearTimeout(this.autoCloseTimer);
-  }
-
   /** Abre/cierra el menú (botón hamburguesa). */
   toggleMenu(): void {
-    // Si el usuario interactúa, cancelamos el autocierre programado.
-    clearTimeout(this.autoCloseTimer);
     this.menuOpen.update((v) => !v);
   }
 

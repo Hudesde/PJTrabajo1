@@ -2,6 +2,7 @@ package com.example.todo.task.dto;
 
 import com.example.todo.task.Task;
 import com.example.todo.task.TaskStatus;
+import com.example.todo.task.TaskPriority;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -18,6 +19,7 @@ public record TaskResponse(
         String title,
         String description,
         TaskStatus status,
+        TaskPriority priority,
         LocalDate dueDate,
         Instant createdAt,
         Instant updatedAt
@@ -30,6 +32,7 @@ public record TaskResponse(
                 task.getTitle(),
                 task.getDescription(),
                 task.getStatus(),
+                task.getPriority(),
                 task.getDueDate(),
                 task.getCreatedAt(),
                 task.getUpdatedAt());

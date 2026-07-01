@@ -35,43 +35,6 @@
   flex-shrink: 0;
 }
 
-/* ===================== Tarjetas de resumen ===================== */
-.summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
-}
-.stat {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  min-height: 90px;
-}
-.stat__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  flex-shrink: 0;
-}
-.stat__icon mat-icon { color: #fff; }
-.stat__icon--total { background: var(--brand-primary); }
-.stat__icon--pend  { background: #c9a227; }
-.stat__icon--prog  { background: var(--c-info); }
-.stat__icon--done  { background: var(--c-success); }
-.stat__value {
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-.stat__label {
-  font-size: 12px;
-}
-
 /* ===================== Tarjeta de tabla ===================== */
 .table-card {
   max-width: 1100px;
@@ -348,8 +311,9 @@
   .tasks-table tr.mat-mdc-row { cursor: pointer; }
 }
 
-/* ===================== Chips de estado ===================== */
-.status-chip {
+/* ===================== Chips de estado y prioridad ===================== */
+.status-chip,
+.priority-chip {
   font-weight: 600 !important;
   font-size: 12px !important;
 }
@@ -359,6 +323,14 @@
 .status-en_progreso ::ng-deep .mdc-evolution-chip__text-label { color: #0a6a93 !important; }
 .status-completada { background-color: #e2f3da !important; }
 .status-completada ::ng-deep .mdc-evolution-chip__text-label { color: #357a1f !important; }
+
+/* --- Colores por prioridad --- */
+.priority-baja { background-color: #e6eef7 !important; }
+.priority-baja ::ng-deep .mdc-evolution-chip__text-label { color: #3a5a80 !important; }
+.priority-media { background-color: #fff3d6 !important; }
+.priority-media ::ng-deep .mdc-evolution-chip__text-label { color: #8a6300 !important; }
+.priority-alta { background-color: #fadcdc !important; }
+.priority-alta ::ng-deep .mdc-evolution-chip__text-label { color: #a12626 !important; }
 
 /* ===================== Estados (skeleton / error / sin resultados) ===================== */
 .skel-row {
@@ -484,21 +456,6 @@
   .table-wrap, .tasks-table, .actions-col, .mat-paginator {
     display: none !important;
   }
-  .summary {
-    grid-template-columns: repeat(2, minmax(120px, 1fr));
-    gap: 10px;
-  }
-  .stat {
-    padding: 10px 12px;
-    min-height: 72px;
-    gap: 10px;
-  }
-  .stat__icon {
-    width: 34px;
-    height: 34px;
-  }
-  .stat__value { font-size: 18px; }
-  .stat__label { font-size: 11px; }
 }
 
 /* ===================== Responsive ===================== */

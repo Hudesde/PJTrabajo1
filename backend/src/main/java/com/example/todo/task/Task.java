@@ -47,6 +47,13 @@ public class Task {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TaskStatus status;
+    
+
+
+    /** Prioridad de la tarea. Se guarda como texto (BAJA / NORMAL / ALTA). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "priority", nullable = false, length = 20)
+    private TaskPriority priority;
 
     /** Fecha límite (opcional). Sólo fecha, sin hora. */
     @Column(name = "due_date")
@@ -72,10 +79,11 @@ public class Task {
     }
 
     /** Constructor de conveniencia para crear una tarea nueva. */
-    public Task(String title, String description, TaskStatus status, LocalDate dueDate, User owner) {
+    public Task(String title, String description, TaskStatus status, TaskPriority priority, LocalDate dueDate, User owner) {
         this.title = title;
         this.description = description;
         this.status = status;
+        this.priority = priority;
         this.dueDate = dueDate;
         this.owner = owner;
     }
@@ -115,6 +123,15 @@ public class Task {
     public void setDescription(String description) {
         this.description = description;
     }
+
+    public TaskPriority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(TaskPriority priority) {
+        this.priority = priority;
+    }
+
 
     public TaskStatus getStatus() {
         return status;

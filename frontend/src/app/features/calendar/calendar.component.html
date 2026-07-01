@@ -9,6 +9,10 @@
         En escritorio verás un calendario mensual, y en móvil se mantiene un listado simple.
       </p>
     </div>
+    <button mat-stroked-button color="primary" (click)="openFilterModal()">
+      <mat-icon>filter_list</mat-icon>
+      Filtrar
+    </button>
   </header>
 
   <mat-card *ngIf="loading()" appearance="outlined" class="cal__card">
@@ -28,8 +32,8 @@
 
   <mat-card *ngIf="!loading() && !errorMessage() && !hasPendingTasks()" appearance="outlined" class="cal__card">
     <app-empty-state
-      title="No hay tareas por realizar"
-      message="Crea tareas nuevas o marca algunas como pendientes para verlas aquí."
+      title="No hay tareas que mostrar"
+      message="Prueba a cambiar el filtro (botón «Filtrar») o crea tareas nuevas."
       icon="event_available">
     </app-empty-state>
   </mat-card>
@@ -47,6 +51,29 @@
     </div>
 
     <div class="desktop-calendar" *ngIf="calendarWeeks().length">
+      <!-- Leyenda: color = estado, grosor = prioridad -->
+      <div class="cal__legend">
+        <span class="legend-item"><span class="legend-swatch legend-swatch--pend"></span>Pendiente</span>
+        <span class="legend-item"><span class="legend-swatch legend-swatch--prog"></span>En progreso</span>
+        <span class="legend-item"><span class="legend-dot"></span>Completada</span>
+        <span class="legend-item legend-item--muted">
+          <span class="legend-thickness legend-thickness--thin"></span>
+          <span class="legend-thickness legend-thickness--thick"></span>
+          Grosor = prioridad (Baja → Alta)
+        </span>
+      </div>
+
+      <!-- Navegación de mes (encima de los días) -->
+      <div class="cal__monthbar">
+        <button mat-icon-button (click)="prevMonth()" aria-label="Mes anterior">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <span class="cal__month">{{ monthLabel() }}</span>
+        <button mat-icon-button (click)="nextMonth()" aria-label="Mes siguiente">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </div>
+
       <div class="calendar-header">
         <div class="calendar-weekdays">
           <span *ngFor="let day of weekDays">{{ day }}</span>
@@ -62,15 +89,30 @@
             </div>
           </div>
           <div class="calendar-week__bars" [style.height.px]="week.rowCount * 52 + 16">
-            <div *ngFor="let segment of week.segments; trackBy: trackBySegment"
-                 class="calendar-bar"
-                 [class.overdue]="segment.isOverdue"
-                 [style.left.%]="segment.leftPct"
-                 [style.width.%]="segment.widthPct"
-                 [style.top.px]="segment.row * 52">
-              <span class="calendar-bar__title">{{ segment.title }}</span>
-              <span class="calendar-bar__label">{{ segment.label }}</span>
-            </div>
+            <ng-container *ngFor="let segment of week.segments; trackBy: trackBySegment">
+              <!-- Completada: sólo un círculo verde hueco en la fecha de entrega -->
+              <div *ngIf="segment.kind === 'dot'"
+                   class="calendar-dot"
+                   [style.left.%]="segment.leftPct"
+                   [style.width.%]="segment.widthPct"
+                   [style.top.px]="segment.row * 52 + 26"
+                   (mouseenter)="showCard(segment, $event)"
+                   (mouseleave)="hideCard()">
+                <span class="calendar-dot__mark" aria-hidden="true"></span>
+              </div>
+              <!-- Pendiente (amarillo) / En progreso (azul); el grosor = prioridad -->
+              <div *ngIf="segment.kind === 'bar'"
+                   class="calendar-bar"
+                   [ngClass]="'status-' + segment.status.toLowerCase() + ' prio-' + segment.priority.toLowerCase()"
+                   [class.overdue]="segment.isOverdue"
+                   [style.left.%]="segment.leftPct"
+                   [style.width.%]="segment.widthPct"
+                   [style.top.px]="segment.row * 52 + 26"
+                   (mouseenter)="showCard(segment, $event)"
+                   (mouseleave)="hideCard()">
+                <span class="calendar-bar__title">{{ segment.title }}</span>
+              </div>
+            </ng-container>
           </div>
         </div>
       </div>
@@ -111,4 +153,24 @@
       </ng-container>
     </div>
   </mat-card>
+
+  <!-- Tarjeta flotante con la info completa de la tarea (al pasar el ratón). -->
+  <div class="cal-hovercard"
+       *ngIf="hovered() as seg"
+       [style.left.px]="hoverPos().x"
+       [style.top.px]="hoverPos().y">
+    <div class="cal-hovercard__title">{{ seg.title }}</div>
+    <dl class="cal-hovercard__grid">
+      <dt>Estado</dt>
+      <dd>
+        <span class="hc-dot" [ngClass]="'status-' + seg.status.toLowerCase()"></span>
+        {{ statusLabel(seg.status) }}
+      </dd>
+      <dt>Prioridad</dt>
+      <dd>{{ priorityLabel(seg.priority) }}</dd>
+      <dt>Entrega</dt>
+      <dd>{{ seg.label }}</dd>
+    </dl>
+    <p class="cal-hovercard__desc" *ngIf="seg.description">{{ seg.description }}</p>
+  </div>
 </div>

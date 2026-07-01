@@ -1,0 +1,52 @@
+<!-- Cabecera con título y botón de cierre (X) -->
+<div class="qa-header">
+  <h2 mat-dialog-title class="qa-title">{{ title }}</h2>
+  <button mat-icon-button aria-label="Cerrar" [mat-dialog-close]="undefined">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content class="qa-content">
+
+  <!-- Accesos rápidos de filtrado por estado -->
+  <p class="qa-section text-muted">Filtrar por estado</p>
+  <div class="qa-filters">
+    <button mat-stroked-button (click)="filterBy(null)">
+      <mat-icon>list_alt</mat-icon>
+      Todas
+    </button>
+    @for (opt of statusOptions; track opt.value) {
+      <button mat-stroked-button (click)="filterBy(opt.value)">
+        <mat-icon>{{ statusIcon(opt.value) }}</mat-icon>
+        {{ opt.label }}
+      </button>
+    }
+  </div>
+
+  <!-- Accesos rápidos de filtrado por prioridad -->
+  @if (showPriority) {
+    <p class="qa-section text-muted">Filtrar por prioridad</p>
+    <div class="qa-filters">
+      <button mat-stroked-button (click)="filterByPriority(null)">
+        <mat-icon>list_alt</mat-icon>
+        Todas
+      </button>
+      @for (opt of priorityOptions; track opt.value) {
+        <button mat-stroked-button (click)="filterByPriority(opt.value)">
+          <mat-icon>flag</mat-icon>
+          {{ opt.label }}
+        </button>
+      }
+    </div>
+  }
+
+  <!-- Crear tarea (opcional) -->
+  @if (showCreate) {
+    <mat-divider></mat-divider>
+    <button mat-flat-button color="primary" class="qa-create" (click)="create()">
+      <mat-icon>add</mat-icon>
+      Nueva tarea
+    </button>
+  }
+
+</mat-dialog-content>

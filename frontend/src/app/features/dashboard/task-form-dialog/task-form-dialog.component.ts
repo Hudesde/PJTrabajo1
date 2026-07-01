@@ -21,13 +21,14 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-
 import { TaskService } from '../../../core/services/task.service';
 import {
   Task,
   TaskRequest,
   TaskStatus,
+  TaskPriority,
   TASK_STATUS_OPTIONS,
+  TASK_PRIORITY_OPTIONS,
 } from '../../../core/models/task.model';
 
 /** Datos opcionales del diálogo: si llega `task`, es modo edición. */
@@ -61,6 +62,7 @@ export interface TaskDialogData {
   providers: [
     provideNativeDateAdapter(),
     { provide: MAT_DATE_LOCALE, useValue: 'es-ES' },
+
   ],
   templateUrl: './task-form-dialog.component.html',
   styleUrl: './task-form-dialog.component.css',
@@ -73,6 +75,7 @@ export class TaskFormDialogComponent {
   private readonly data = inject<TaskDialogData>(MAT_DIALOG_DATA);
 
   readonly statusOptions = TASK_STATUS_OPTIONS;
+  readonly priorityOptions = TASK_PRIORITY_OPTIONS;
   readonly isEdit = !!this.data?.task;
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -82,6 +85,7 @@ export class TaskFormDialogComponent {
     title: ['', [Validators.required, Validators.maxLength(150)]],
     description: [''],
     status: ['PENDIENTE' as TaskStatus, Validators.required],
+    priority: ['MEDIA' as TaskPriority, Validators.required],
     dueDate: [null as Date | null],
   });
 
@@ -93,6 +97,7 @@ export class TaskFormDialogComponent {
         title: task.title,
         description: task.description ?? '',
         status: task.status,
+        priority: task.priority,
         dueDate: this.parseDate(task.dueDate),
       });
     }
@@ -113,6 +118,7 @@ export class TaskFormDialogComponent {
       title: raw.title.trim(),
       description: raw.description.trim() === '' ? null : raw.description.trim(),
       status: raw.status,
+      priority: raw.priority,
       dueDate: this.formatDate(raw.dueDate),
     };
 

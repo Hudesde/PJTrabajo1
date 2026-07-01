@@ -4,7 +4,7 @@ import com.example.todo.task.TaskStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-
+import com.example.todo.task.TaskPriority;
 import java.time.LocalDate;
 
 /**
@@ -24,6 +24,9 @@ public record TaskRequest(
 
         @NotNull(message = "El estado es obligatorio")
         TaskStatus status,
+
+        @NotNull(message = "La prioridad es obligatoria")
+        TaskPriority priority,
 
         // La fecha límite es opcional, por eso no lleva @NotNull.
         LocalDate dueDate

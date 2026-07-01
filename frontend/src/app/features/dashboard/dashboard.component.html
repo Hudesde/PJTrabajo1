@@ -2,9 +2,9 @@
   DASHBOARD (estilo SaaS):
     · Toolbar superior con menú de usuario.
     · Bienvenida + botón "Nueva tarea".
-    · Tarjetas de resumen (contadores por estado).
     · Tarjeta con buscador + filtro + tabla (MatTable, paginación, orden, chips).
     · Estados: carga (progress bar + skeleton), error, vacío y sin resultados.
+    · Al entrar se abre un modal de acciones rápidas (filtros + Nueva tarea).
 -->
 <div class="dash">
 
@@ -26,41 +26,6 @@
         Nueva tarea
       </button>
     </header>
-
-    <!-- ===================== Tarjetas de resumen ===================== -->
-    <section class="summary" aria-label="Resumen de tareas">
-      <mat-card class="stat" appearance="outlined">
-        <span class="stat__icon stat__icon--total"><mat-icon>list_alt</mat-icon></span>
-        <div>
-          <div class="stat__value">{{ total() }}</div>
-          <div class="stat__label text-muted">Total</div>
-        </div>
-      </mat-card>
-
-      <mat-card class="stat" appearance="outlined">
-        <span class="stat__icon stat__icon--pend"><mat-icon>schedule</mat-icon></span>
-        <div>
-          <div class="stat__value">{{ countPendiente() }}</div>
-          <div class="stat__label text-muted">Pendientes</div>
-        </div>
-      </mat-card>
-
-      <mat-card class="stat" appearance="outlined">
-        <span class="stat__icon stat__icon--prog"><mat-icon>autorenew</mat-icon></span>
-        <div>
-          <div class="stat__value">{{ countEnProgreso() }}</div>
-          <div class="stat__label text-muted">En progreso</div>
-        </div>
-      </mat-card>
-
-      <mat-card class="stat" appearance="outlined">
-        <span class="stat__icon stat__icon--done"><mat-icon>check_circle</mat-icon></span>
-        <div>
-          <div class="stat__value">{{ countCompletada() }}</div>
-          <div class="stat__label text-muted">Completadas</div>
-        </div>
-      </mat-card>
-    </section>
 
     <!-- ===================== Contenido principal ===================== -->
     @if (loading()) {
@@ -122,6 +87,17 @@
               }
             </mat-select>
           </mat-form-field>
+
+          <!-- Filtro por prioridad (BAJA / MEDIA / ALTA). "Todas" = sin filtro. -->
+          <mat-form-field appearance="outline" class="filters__priority" subscriptSizing="dynamic">
+            <mat-label>Prioridad</mat-label>
+            <mat-select [formControl]="priorityFilter">
+              <mat-option [value]="null">Todas</mat-option>
+              @for (opt of priorityOptions; track opt.value) {
+                <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
         </div>
 
         <mat-divider></mat-divider>
@@ -142,6 +118,7 @@
                 <col style="width: auto" />
                 <col style="width: 140px" />
                 <col style="width: 160px" />
+                <col style="width: 130px" />
               </colgroup>
 
               <!-- Columna: Tarea (título + descripción) - incluye acciones en hover -->
@@ -196,6 +173,18 @@
                 </td>
               </ng-container>
 
+              <!-- Columna: Prioridad (chip) -->
+              <ng-container matColumnDef="priority">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Prioridad</th>
+                <td mat-cell *matCellDef="let t">
+                  <mat-chip-set>
+                    <mat-chip [disableRipple]="true" [class]="priorityChipClass(t.priority)">
+                      {{ priorityLabel(t.priority) }}
+                    </mat-chip>
+                  </mat-chip-set>
+                </td>
+              </ng-container>
+
               <!-- Acciones ahora aparecen al hacer hover dentro de cada fila (no columna separada) -->
 
               <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
@@ -212,6 +201,9 @@
                     <div class="mobile-task-meta">
                       <span class="task-status" [class]="statusChipClass(task.status)">
                         {{ statusLabel(task.status) }}
+                      </span>
+                      <span class="task-status" [class]="priorityChipClass(task.priority)">
+                        {{ priorityLabel(task.priority) }}
                       </span>
                       <span class="task-due">
                         <mat-icon aria-hidden="true">event</mat-icon>

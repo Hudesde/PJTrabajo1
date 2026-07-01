@@ -1,32 +1,11 @@
 :host { display: block; }
 
-/* ===================== Fondo difuminado (laterales) ===================== */
-.bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: url('/assets/illustrations/site-background.png') center / cover no-repeat;
-  /* Difuminado discreto; el escalado evita bordes claros por el blur. */
-  filter: blur(16px) saturate(1.05);
-  transform: scale(1.1);
-}
-/* Velo para mantener legibilidad y un look sobrio (sin saturar). */
-.bg::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(248, 248, 248, 0.45);
-}
-
-/* ===================== Escenario centrado (opaco) ===================== */
+/* ===================== Contenedor principal (ancho completo) ===================== */
 .stage.mat-sidenav-container {
   position: relative;
   z-index: 1;
-  max-width: 1280px;
-  margin: 0 auto;
   min-height: 100vh;
   background: var(--c-bg);
-  box-shadow: 0 0 48px rgba(0, 0, 0, 0.14);
 }
 .content-area.mat-sidenav-content {
   background: transparent;
@@ -107,24 +86,7 @@
   font-weight: 600;
 }
 
-.subnav-list {
-  margin: 0;
-  padding: 0 0 0 16px;
-}
-.subnav-item {
-  padding-left: 40px;
-  font-size: 0.95rem;
-}
-.subnav-item mat-icon {
-  font-size: 18px;
-}
-
 /* ===================== Página ===================== */
 .page {
   min-height: calc(100vh - 64px);
-}
-
-/* En pantallas anchas el fondo lateral luce; en estrechas el escenario ocupa todo. */
-@media (max-width: 1280px) {
-  .stage.mat-sidenav-container { box-shadow: none; }
 }

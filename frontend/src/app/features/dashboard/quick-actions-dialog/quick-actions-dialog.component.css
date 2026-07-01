@@ -1,0 +1,42 @@
+/* Cabecera: título a la izquierda, botón de cierre a la derecha. */
+.qa-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.qa-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.qa-content {
+  min-width: 320px;
+}
+
+.qa-section {
+  margin: 4px 0 10px;
+  font-size: 0.9rem;
+}
+
+/* Botones de filtro en rejilla de dos columnas. */
+.qa-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.qa-filters button {
+  justify-content: flex-start;
+}
+
+/* Botón de crear a todo el ancho. */
+.qa-create {
+  width: 100%;
+  margin-top: 12px;
+}
+
+@media (max-width: 480px) {
+  .qa-filters {
+    grid-template-columns: 1fr;
+  }
+}

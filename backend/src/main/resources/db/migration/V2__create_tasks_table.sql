@@ -10,6 +10,7 @@ CREATE TABLE tasks (
     title       VARCHAR(150) NOT NULL,
     description TEXT,
     status      VARCHAR(20)  NOT NULL,           -- PENDIENTE / EN_PROGRESO / COMPLETADA
+    priority    VARCHAR(20)  NOT NULL,           -- BAJA / NORMAL / ALTA
     due_date    DATE,
     user_id     BIGINT       NOT NULL,
     created_at  TIMESTAMP WITH TIME ZONE NOT NULL,

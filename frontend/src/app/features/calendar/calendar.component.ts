@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 
@@ -6,10 +6,15 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { TaskService } from '../../core/services/task.service';
-import { Task, TaskStatus } from '../../core/models/task.model';
+import { Task, TaskStatus, TaskPriority } from '../../core/models/task.model';
 import { EmptyStateComponent } from '../../shared/empty-state/empty-state.component';
+import {
+  QuickActionsDialogComponent,
+  QuickAction,
+} from '../dashboard/quick-actions-dialog/quick-actions-dialog.component';
 
 interface MonthDay {
   dateValue: string;
@@ -22,8 +27,13 @@ interface CalendarSegment {
   id: number;
   title: string;
   status: TaskStatus;
+  priority: TaskPriority;
+  /** 'bar' para pendiente/en progreso; 'dot' (círculo) para completada. */
+  kind: 'bar' | 'dot';
   isOverdue: boolean;
   label: string;
+  /** Descripción de la tarea (para la tarjeta flotante). */
+  description: string | null;
   leftPct: number;
   widthPct: number;
   row: number;
@@ -53,6 +63,7 @@ interface TaskGroup {
     MatIconModule,
     MatButtonModule,
     MatProgressBarModule,
+    MatDialogModule,
     EmptyStateComponent,
   ],
   templateUrl: './calendar.component.html',
@@ -61,6 +72,7 @@ interface TaskGroup {
 export class CalendarComponent implements OnInit {
 
   private readonly taskService = inject(TaskService);
+  private readonly dialog = inject(MatDialog);
 
   readonly loading = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -71,8 +83,30 @@ export class CalendarComponent implements OnInit {
   readonly calendarWeeks = signal<WeekRow[]>([]);
   readonly weekDays = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
 
+  /** Mes que se está visualizando en la rejilla (se cambia con ‹ ›). */
+  private readonly viewDate = signal(new Date());
+  /** Etiqueta del mes visualizado, p. ej. "Julio de 2026". */
+  readonly monthLabel = computed(() => {
+    const label = this.viewDate().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  });
+
+  /** Todas las tareas del usuario (sin filtrar). */
+  private readonly allTasks = signal<Task[]>([]);
+  /** Filtro por estado (null = Todas, incluye completadas). */
+  private readonly statusFilter = signal<TaskStatus | null>(null);
+  /** Filtro por prioridad (null = Todas). */
+  private readonly priorityFilter = signal<TaskPriority | null>(null);
+
+  /** Segmento sobre el que está el ratón (para la tarjeta flotante); null = ninguno. */
+  readonly hovered = signal<CalendarSegment | null>(null);
+  /** Posición (viewport) donde se dibuja la tarjeta flotante. */
+  readonly hoverPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+
   ngOnInit(): void {
     this.load();
+    // Modal de filtrado: se abre al entrar al calendario (igual que el dashboard).
+    setTimeout(() => this.openFilterModal());
   }
 
   load(): void {
@@ -81,12 +115,8 @@ export class CalendarComponent implements OnInit {
 
     this.taskService.list().subscribe({
       next: (tasks) => {
-        const pendingTasks = tasks.filter((task) => task.status !== 'COMPLETADA');
-        this.pendingCount.set(pendingTasks.length);
-        this.overdueCount.set(pendingTasks.filter((task) => this.isOverdue(task)).length);
-        this.taskGroups.set(this.buildGroups(pendingTasks));
-        this.calendarWeeks.set(this.buildCalendarWeeks(pendingTasks));
-        this.hasPendingTasks.set(pendingTasks.length > 0);
+        this.allTasks.set(tasks);
+        this.applyFilters();
         this.loading.set(false);
       },
       error: (err: HttpErrorResponse) => {
@@ -96,12 +126,98 @@ export class CalendarComponent implements OnInit {
     });
   }
 
+  /**
+   * Abre el modal de filtrado del calendario (sin "Nueva tarea"). Según lo que
+   * elija el usuario, aplica el filtro por estado o por prioridad. Se llama al
+   * entrar y desde el botón "Filtrar" de la cabecera.
+   */
+  openFilterModal(): void {
+    const ref = this.dialog.open(QuickActionsDialogComponent, {
+      width: '440px',
+      maxWidth: '95vw',
+      autoFocus: false,
+      data: { title: 'Filtrar calendario', showPriority: true, showCreate: false },
+    });
+    ref.afterClosed().subscribe((result?: QuickAction) => {
+      if (!result) {
+        return; // Cerrado sin elegir: se mantiene el filtro actual.
+      }
+      if (result.action === 'filter') {
+        this.statusFilter.set(result.status);
+        this.applyFilters();
+      } else if (result.action === 'filterPriority') {
+        this.priorityFilter.set(result.priority);
+        this.applyFilters();
+      }
+    });
+  }
+
+  /** Recalcula lo que se muestra aplicando los filtros de estado y prioridad. */
+  private applyFilters(): void {
+    const status = this.statusFilter();
+    const priority = this.priorityFilter();
+
+    const visible = this.allTasks().filter((task) => {
+      const matchesStatus = !status || task.status === status;
+      const matchesPriority = !priority || task.priority === priority;
+      return matchesStatus && matchesPriority;
+    });
+
+    // "Por realizar" = tareas visibles no completadas; "Vencidas" = visibles vencidas.
+    this.pendingCount.set(visible.filter((t) => t.status !== 'COMPLETADA').length);
+    this.overdueCount.set(visible.filter((task) => this.isOverdue(task)).length);
+    this.taskGroups.set(this.buildGroups(visible));
+    this.calendarWeeks.set(this.buildCalendarWeeks(visible));
+    this.hasPendingTasks.set(visible.length > 0);
+  }
+
+  /** Retrocede un mes en la rejilla del calendario. */
+  prevMonth(): void { this.shiftMonth(-1); }
+  /** Avanza un mes en la rejilla del calendario. */
+  nextMonth(): void { this.shiftMonth(1); }
+
+  private shiftMonth(delta: number): void {
+    const d = this.viewDate();
+    this.viewDate.set(new Date(d.getFullYear(), d.getMonth() + delta, 1));
+    this.applyFilters(); // Reconstruye la rejilla para el nuevo mes.
+  }
+
   statusLabel(status: TaskStatus): string {
     switch (status) {
       case 'PENDIENTE': return 'Pendiente';
       case 'EN_PROGRESO': return 'En progreso';
       case 'COMPLETADA': return 'Completada';
     }
+  }
+
+  priorityLabel(priority: TaskPriority): string {
+    switch (priority) {
+      case 'BAJA': return 'Baja';
+      case 'MEDIA': return 'Media';
+      case 'ALTA': return 'Alta';
+    }
+  }
+
+  /** Muestra la tarjeta flotante con la info de la tarea al pasar el ratón. */
+  showCard(segment: CalendarSegment, event: MouseEvent): void {
+    const cardW = 340;
+    const cardH = 200;
+    let x = event.clientX + 16;
+    let y = event.clientY + 16;
+    // Evita que la tarjeta se salga de la pantalla.
+    if (x + cardW > window.innerWidth) {
+      x = event.clientX - cardW - 16;
+    }
+    if (y + cardH > window.innerHeight) {
+      y = window.innerHeight - cardH - 12;
+    }
+    this.hoverPos.set({ x: Math.max(8, x), y: Math.max(8, y) });
+    this.hovered.set(segment);
+  }
+
+  /** Oculta la tarjeta flotante al salir de la tarea. */
+  hideCard(): void {
+    this.hovered.set(null);
   }
 
   formatDueDate(value: string | null): string {
@@ -167,8 +283,9 @@ export class CalendarComponent implements OnInit {
 
   private buildCalendarWeeks(tasks: Task[]): WeekRow[] {
     const today = new Date();
-    const month = today.getMonth();
-    const year = today.getFullYear();
+    const base = this.viewDate();          // Mes que se está visualizando.
+    const month = base.getMonth();
+    const year = base.getFullYear();
     const startOfMonth = new Date(year, month, 1);
     const endOfMonth = new Date(year, month + 1, 0);
 
@@ -208,6 +325,32 @@ export class CalendarComponent implements OnInit {
       const segments: CalendarSegment[] = [];
 
       for (const task of tasks) {
+        // Completadas: no se dibuja barra, sólo un círculo en la fecha de entrega
+        // (o de creación si no tiene fecha límite).
+        if (task.status === 'COMPLETADA') {
+          const dueIdx = this.dayIndex(task.dueDate ?? task.createdAt);
+          if (dueIdx < weekStart || dueIdx > weekEnd) {
+            continue;
+          }
+          const offset = dueIdx - weekStart;
+          segments.push({
+            id: task.id * 100 + weekStart,
+            title: task.title,
+            status: task.status,
+            priority: task.priority,
+            kind: 'dot',
+            isOverdue: false,
+            label: task.dueDate ? this.formatDueDate(task.dueDate) : 'Sin fecha',
+            description: task.description,
+            leftPct: (offset / 7) * 100,
+            widthPct: (1 / 7) * 100,
+            row: 0,
+            startOffset: offset,
+            endOffset: offset,
+          });
+          continue;
+        }
+
         const taskStart = this.dayIndex(task.createdAt);
         const taskEnd = this.dayIndex(task.dueDate ?? task.createdAt);
         if (taskEnd < weekStart || taskStart > weekEnd) {
@@ -223,8 +366,11 @@ export class CalendarComponent implements OnInit {
           id: task.id * 100 + weekStart,
           title: task.title,
           status: task.status,
+          priority: task.priority,
+          kind: 'bar',
           isOverdue: this.isOverdue(task),
           label: task.dueDate ? this.formatDueDate(task.dueDate) : 'Sin fecha',
+          description: task.description,
           leftPct: (startOffset / 7) * 100,
           widthPct: (span / 7) * 100,
           row: 0,

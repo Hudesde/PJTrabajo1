@@ -1,5 +1,9 @@
 # ---------- Variables de entorno / secretos ----------
-.env
+# El .env de este proyecto sólo contiene valores de DESARROLLO (sin secretos
+# reales), por eso SÍ se versiona para facilitar el arranque tras un clon.
+# Si necesitas secretos reales, ponlos en un .env.local (ignorado).
+.env.local
+.env.*.local
 
 # ---------- Backend (Maven / Java) ----------
 backend/target/
@@ -27,5 +31,6 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# ---------- Logs ----------
+# ---------- Logs / depuración ----------
 *.log
+backend/error_debug.txt

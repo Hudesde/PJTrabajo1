@@ -33,7 +33,9 @@ import { TaskService } from '../../core/services/task.service';
 import {
   Task,
   TaskStatus,
+  TaskPriority,
   TASK_STATUS_OPTIONS,
+  TASK_PRIORITY_OPTIONS,
 } from '../../core/models/task.model';
 import { EmptyStateComponent } from '../../shared/empty-state/empty-state.component';
 import {
@@ -44,6 +46,10 @@ import {
   TaskFormDialogComponent,
   TaskDialogData,
 } from './task-form-dialog/task-form-dialog.component';
+import {
+  QuickActionsDialogComponent,
+  QuickAction,
+} from './quick-actions-dialog/quick-actions-dialog.component';
 
 /**
  * Dashboard principal (estilo SaaS): toolbar, tarjetas de resumen, buscador,
@@ -96,14 +102,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
+  /** Opciones del filtro de prioridad (incluye "Todas"). */
+  readonly priorityOptions = TASK_PRIORITY_OPTIONS;
+
   /** Opciones del filtro de estado (incluye "Todas"). */
   readonly statusOptions = TASK_STATUS_OPTIONS;
 
   /** Columnas visibles de la tabla. */
-  readonly displayedColumns = ['title', 'status', 'dueDate'];
+  readonly displayedColumns = ['title', 'status', 'dueDate', 'priority'];
 
   /** Controles reactivos para filtro y búsqueda. */
   readonly statusFilter = new FormControl<TaskStatus | null>(null);
+  readonly priorityFilter = new FormControl<TaskPriority | null>(null);
   readonly search = new FormControl<string>('', { nonNullable: true });
 
   /** Fuente de datos de la tabla (gestiona paginación y orden). */
@@ -119,11 +129,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   /** Usuario en sesión. */
   readonly username = this.authService.currentUser;
 
-  /** Contadores para las tarjetas de resumen (derivados de todas las tareas). */
+  /** Nº total de tareas (para decidir el estado "sin tareas"). */
   readonly total = computed(() => this.allTasks().length);
-  readonly countPendiente = computed(() => this.countBy('PENDIENTE'));
-  readonly countEnProgreso = computed(() => this.countBy('EN_PROGRESO'));
-  readonly countCompletada = computed(() => this.countBy('COMPLETADA'));
 
   // ViewChild como setter: asigna paginator/sort en cuanto aparecen en el DOM
   // (la tabla se renderiza condicionalmente, así que pueden no existir al inicio).
@@ -159,8 +166,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.applyFilters();
       this.updateRouteStatus(status);
     });
+    // El filtro de prioridad sólo afecta al listado en memoria (no va en la URL).
+    this.priorityFilter.valueChanges.subscribe(() => this.applyFilters());
     this.search.valueChanges.subscribe(() => this.applyFilters());
     window.addEventListener('resize', this.resizeListener);
+
+    // Modal de acciones rápidas: se abre en cuanto se llega al dashboard.
+    // Se difiere un tick para no chocar con la detección de cambios inicial.
+    setTimeout(() => this.openQuickActions());
   }
 
   ngOnDestroy(): void {
@@ -193,18 +206,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Aplica filtro por estado + búsqueda y actualiza la tabla. */
+  /** Aplica filtro por estado + prioridad + búsqueda y actualiza la tabla. */
   private applyFilters(): void {
     const status = this.statusFilter.value;
+    const priority = this.priorityFilter.value;
     const term = this.search.value.trim().toLowerCase();
 
     const filtered = this.allTasks().filter((t) => {
       const matchesStatus = !status || t.status === status;
+      const matchesPriority = !priority || t.priority === priority;
       const matchesTerm =
         !term ||
         t.title.toLowerCase().includes(term) ||
         (t.description?.toLowerCase().includes(term) ?? false);
-      return matchesStatus && matchesTerm;
+      return matchesStatus && matchesPriority && matchesTerm;
     });
 
     this.dataSource.data = filtered;
@@ -212,9 +227,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this._paginator?.firstPage();
   }
 
-  /** Limpia el filtro y la búsqueda. */
+  /** Limpia los filtros (estado + prioridad) y la búsqueda. */
   clearFilters(): void {
     this.statusFilter.setValue(null);
+    this.priorityFilter.setValue(null);
     this.search.setValue('');
   }
 
@@ -230,6 +246,35 @@ export class DashboardComponent implements OnInit, OnDestroy {
       queryParams: { status: status ?? null },
       queryParamsHandling: 'merge',
       replaceUrl: true,
+    });
+  }
+
+  /**
+   * Abre el modal de acciones rápidas (al entrar al dashboard). Según lo que
+   * elija el usuario, aplica un filtro por estado o abre el alta de tarea.
+   */
+  private openQuickActions(): void {
+    const ref = this.dialog.open(QuickActionsDialogComponent, {
+      width: '440px',
+      maxWidth: '95vw',
+      autoFocus: false,
+    });
+    ref.afterClosed().subscribe((result?: QuickAction) => {
+      if (!result) {
+        return; // Cerrado con la X, backdrop o Escape: no hacer nada.
+      }
+      switch (result.action) {
+        case 'filter':
+          // setValue dispara valueChanges -> applyFilters() + sincroniza la URL.
+          this.statusFilter.setValue(result.status);
+          break;
+        case 'filterPriority':
+          this.priorityFilter.setValue(result.priority);
+          break;
+        case 'create':
+          this.openCreate();
+          break;
+      }
     });
   }
 
@@ -304,6 +349,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return `status-chip status-${status.toLowerCase()}`;
   }
 
+  /** Etiqueta legible de la prioridad. */
+  priorityLabel(priority: TaskPriority): string {
+    switch (priority) {
+      case 'BAJA': return 'Baja';
+      case 'MEDIA': return 'Media';
+      case 'ALTA': return 'Alta';
+    }
+  }
+
+  /** Clase CSS para el chip de prioridad (color por prioridad). */
+  priorityChipClass(priority: TaskPriority): string {
+    return `priority-chip priority-${priority.toLowerCase()}`;
+  }
+
   /** Indica si una tarea pendiente/en progreso está vencida (fecha pasada). */
   isOverdue(task: Task): boolean {
     if (!task.dueDate || task.status === 'COMPLETADA') {
@@ -312,10 +371,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return new Date(task.dueDate) < today;
-  }
-
-  private countBy(status: TaskStatus): number {
-    return this.allTasks().filter((t) => t.status === status).length;
   }
 
   private notify(message: string, type: 'success' | 'error' | 'info'): void {

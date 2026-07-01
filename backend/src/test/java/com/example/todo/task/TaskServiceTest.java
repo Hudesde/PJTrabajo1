@@ -60,7 +60,7 @@ class TaskServiceTest {
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         TaskRequest request = new TaskRequest(
-                "Comprar pan", "Integral", TaskStatus.PENDIENTE, LocalDate.now());
+                "Comprar pan", "Integral", TaskStatus.PENDIENTE, TaskPriority.MEDIA, LocalDate.now());
 
         // WHEN
         TaskResponse result = taskService.create("ana", request);
@@ -68,6 +68,7 @@ class TaskServiceTest {
         // THEN: la respuesta refleja los datos enviados y se llamó a save().
         assertThat(result.title()).isEqualTo("Comprar pan");
         assertThat(result.status()).isEqualTo(TaskStatus.PENDIENTE);
+        assertThat(result.priority()).isEqualTo(TaskPriority.MEDIA);
         verify(taskRepository).save(any(Task.class));
     }
 
@@ -75,8 +76,8 @@ class TaskServiceTest {
     @DisplayName("list() sin filtro devuelve todas las tareas del usuario")
     void list_withoutFilter_returnsAllUserTasks() {
         when(userRepository.findByUsername("ana")).thenReturn(Optional.of(owner));
-        Task t1 = new Task("A", null, TaskStatus.PENDIENTE, null, owner);
-        Task t2 = new Task("B", null, TaskStatus.COMPLETADA, null, owner);
+        Task t1 = new Task("A", null, TaskStatus.PENDIENTE, TaskPriority.MEDIA, null, owner);
+        Task t2 = new Task("B", null, TaskStatus.COMPLETADA, TaskPriority.ALTA, null, owner);
         when(taskRepository.findByOwnerIdOrderByCreatedAtDesc(1L))
                 .thenReturn(List.of(t1, t2));
 
